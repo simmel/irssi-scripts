@@ -18,12 +18,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "2.2";
+$VERSION = "2.3";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20070818",
+        date        => "20071006",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime".',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -34,6 +34,11 @@ $VERSION = "2.2";
 # * Apparently åäö and maybe UTF-8 doesn't work well with sprintf, investigate and fix if possible.
 
 # Changelog
+
+# 2.3 -- Sat Oct  6 16:38:34 CEST 2007
+# * Made /np a nonblocking operation. Irssi's fork handling is REALLY messy. Thanks to tss and tommie for inspiring me in their scripts. $np cannot be made nonblocking, I'm afraid (patches welcome).
+# * Cleaned up abit.
+
 # 2.2 -- Sat Aug 18 02:20:44 CEST 2007
 # * Now you can use $np(darksoy) to see what I play (or someone else for that matter ; ).
 
@@ -72,41 +77,17 @@ Irssi::settings_add_str("lastfm", "lastfm_strftime", 'submitted at: %R %Z');
 # If we should use /me instead of /say
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
+# Move along now, there's nothing here to see.
+
 sub cmd_lastfm
 {
 	my ($data, $server, $witem) = @_;
-	print Dumper "cmd_lastfm", $witem->{'type'};
-	lastfm($witem);
+	lastfm_forky($witem);
 }
-
-# lastfm($witem, $users) som bearbetar datan
-# lastfm_display som agerar vad den ska göra med datan.
 
 sub lastfm
 {
-	my $witem = shift;
-	my $user = shift || Irssi::settings_get_str("lastfm_user");
-	print Dumper "lastfm", $witem->{type};
-	if ($pid or $input_tag)
-	{
-		print Dumper $pid, $input_tag;
-		Irssi::active_win()->print("We're still waiting for Last.fm to return our data or to hit the timeout (this happends when Last.fm is down or very slow).");
-		return;
-	}
-
-	my ($reader, $writer);
-	pipe($reader, $writer);
-	$pid = fork();
-	return unless ( defined $pid );
-	if ($pid)
-	{
-		close($writer);
-		Irssi::pidwait_add($pid);
-		$input_tag = Irssi::input_add(fileno($reader), INPUT_READ, \&input_read, ('fest', $witem, $reader));
-	}
-	else
-	{
-		close($reader);
+		my $user = shift || Irssi::settings_get_str("lastfm_user");
 		my $sprintf = Irssi::settings_get_str("lastfm_sprintf");
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 
@@ -133,7 +114,33 @@ sub lastfm
 		$content = sprintf($sprintf, $1, $2, $3, $strftime);
 		Encode::from_to($content, 'utf-8', 'latin1');
 		decode_entities($content);
-		print $writer $content;
+		return $content;
+}
+
+sub lastfm_forky
+{
+	my $witem = shift;
+	if ($pid or $input_tag)
+	{
+		Irssi::active_win()->print("We're still waiting for Last.fm to return our data or to hit the timeout (this happends when Last.fm is down or very slow).");
+		return;
+	}
+
+	my ($reader, $writer);
+	pipe($reader, $writer);
+	$pid = fork();
+	return unless ( defined $pid );
+	if ($pid)
+	{
+		close($writer);
+		Irssi::pidwait_add($pid);
+		my @args = ($witem, $reader);
+		$input_tag = Irssi::input_add(fileno($reader), INPUT_READ, \&input_read, \@args);
+	}
+	else
+	{
+		close($reader);
+		print $writer lastfm();
 		close($writer);
 		POSIX::_exit(1);
 	}
@@ -141,20 +148,12 @@ sub lastfm
 }
 
 sub input_read {
-	print Dumper @_;
-	my $witem = shift;
-	my $reader = shift;
-	Irssi::input_remove($input_tag);
-	close($reader);
-	$input_tag = $pid = undef;
-	return;
-#	my ($witem, $reader) = @_;
+	my ($witem, $reader) = @{$_[0]};
 	my @content = <$reader>;
 	my $content = join('', @content);
-#	while (<$reader>) {
-#		chomp;
-#		print $_;
-#	}
+
+	Irssi::input_remove($input_tag);
+
 	if (defined $witem->{type} && $witem->{type} =~ /^QUERY|CHANNEL$/)
 	{
 		if (Irssi::settings_get_bool("lastfm_use_action"))
@@ -168,8 +167,9 @@ sub input_read {
 	}
 	else
 	{
-		$witem->print($content);
+		print($content);
 	}
+
 	Irssi::input_remove($input_tag);
 	close($reader);
 	$input_tag = $pid = undef;
