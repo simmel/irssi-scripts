@@ -18,12 +18,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "2.3";
+$VERSION = "2.4";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071006",
+        date        => "20071008",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime".',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -32,8 +32,13 @@ $VERSION = "2.3";
 
 # TODO
 # * Apparently åäö and maybe UTF-8 doesn't work well with sprintf, investigate and fix if possible.
+# * Fix better error reporting.
 
 # Changelog
+
+# 2.4 -- Mon Oct  8 16:08:09 CEST 2007
+# * Fixed an error in error reporting ; P Bug noticed by supertobbe = *
+# * I should make an more generic and better error reporting.
 
 # 2.3 -- Sat Oct  6 16:38:34 CEST 2007
 # * Made /np a nonblocking operation. Irssi's fork handling is REALLY messy. Thanks to tss and tommie for inspiring me in their scripts. $np cannot be made nonblocking, I'm afraid (patches welcome).
@@ -152,22 +157,27 @@ sub input_read {
 	my @content = <$reader>;
 	my $content = join('', @content);
 
-	Irssi::input_remove($input_tag);
-
-	if (defined $witem->{type} && $witem->{type} =~ /^QUERY|CHANNEL$/)
+	if ($content eq "")
 	{
-		if (Irssi::settings_get_bool("lastfm_use_action"))
-		{
-			$witem->command("me $content");
-		}
-		else
-		{
-			$witem->command("say $content");
-		}
+		Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
 	}
 	else
 	{
-		print($content);
+		if (defined $witem->{type} && $witem->{type} =~ /^QUERY|CHANNEL$/)
+		{
+			if (Irssi::settings_get_bool("lastfm_use_action"))
+			{
+				$witem->command("me $content");
+			}
+			else
+			{
+				$witem->command("say $content");
+			}
+		}
+		else
+		{
+			print($content);
+		}
 	}
 
 	Irssi::input_remove($input_tag);
