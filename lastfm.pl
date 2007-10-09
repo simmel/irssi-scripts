@@ -18,12 +18,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "2.4";
+$VERSION = "2.5";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071008",
+        date        => "20071009",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime".',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -31,10 +31,12 @@ $VERSION = "2.4";
 # README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information on how to configure.
 
 # TODO
-# * Apparently åäö and maybe UTF-8 doesn't work well with sprintf, investigate and fix if possible.
 # * Fix better error reporting.
 
 # Changelog
+
+# 2.5 -- Tue Oct  9 11:29:56 CEST 2007
+# * Fixed the encoding issue by converting from Last.fms UTF-8 into Perls internal encoding. With $np<TAB> output will be looking UTF-8-in-latin1 if you don't have an UTF-8 enabled Terminal, but it will display correctly after you have sent it.
 
 # 2.4 -- Mon Oct  8 16:08:09 CEST 2007
 # * Fixed an error in error reporting ; P Bug noticed by supertobbe = *
@@ -117,7 +119,9 @@ sub lastfm
 		}
 		$strftime = strftime($strftime, localtime(scalar($4)));
 		$content = sprintf($sprintf, $1, $2, $3, $strftime);
-		Encode::from_to($content, 'utf-8', 'latin1');
+		# TODO Check which one that actually is better
+#		Encode::from_to($content, 'utf-8', 'latin1');
+		$content = Encode::decode('utf-8', $content);
 		decode_entities($content);
 		return $content;
 }
