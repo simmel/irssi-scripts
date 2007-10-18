@@ -32,6 +32,7 @@ $VERSION = "2.5";
 
 # TODO
 # * Fix better error reporting.
+# * Now playing parsing from the profile page using this regexp: nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>
 
 # Changelog
 
