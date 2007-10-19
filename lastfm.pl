@@ -122,7 +122,7 @@ sub lastfm
 			}
 			$content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s;
 #	print $4, " ", DateTime->now(time_zone => 'UTC')->epoch() - 30 * 60;
-			if ($content eq "")
+			if (! defined $1)
 			{
 				Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
 				return;
