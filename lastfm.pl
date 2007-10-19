@@ -18,23 +18,26 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "2.5";
+$VERSION = "3.0";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071009",
-        description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime".',
+        date        => "20071019",
+        description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
     );
-# README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information on how to configure.
+# README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information about the settings.
 
 # TODO
 # * Fix better error reporting.
-# * Now playing parsing from the profile page using this regexp: nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>
+# * Work on printfng for conditional support in "lastfm_sprintf".
 
 # Changelog
+
+# 3.0 -- Fri Oct 19 14:26:03 CEST 2007
+# * Created a new setting "lastfm_be_accurate_and_slow" which makes lastfm.pl parse your profile page to check what song you are playing right now. But be warned, this is slow and horrible (like my code! ; ). But it works until Last.fm makes this data available through their Web Services. This disables the album and "scrobbled at" features of "lastfm_sprintf" so you have to adapt it if you don't want it to look weird. I'm working on a new implementation of printf which allows for conditions but it took more time than I thought and time is something that I don't have much of ='(
 
 # 2.5 -- Tue Oct  9 11:29:56 CEST 2007
 # * Fixed the encoding issue by converting from Last.fms UTF-8 into Perls internal encoding. With $np<TAB> output will be looking UTF-8-in-latin1 if you don't have an UTF-8 enabled Terminal, but it will display correctly after you have sent it.
@@ -85,6 +88,9 @@ Irssi::settings_add_str("lastfm", "lastfm_strftime", 'submitted at: %R %Z');
 # If we should use /me instead of /say
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
+# Parse the profile instead, gets accurate data but is *much* slower.
+Irssi::settings_add_bool("lastfm", "lastfm_be_accurate_and_slow", 0);
+
 # Move along now, there's nothing here to see.
 
 sub cmd_lastfm
@@ -98,6 +104,7 @@ sub lastfm
 		my $user = shift || Irssi::settings_get_str("lastfm_user");
 		my $sprintf = Irssi::settings_get_str("lastfm_sprintf");
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
+		my $content;
 
 		if ($user eq "")
 		{
@@ -105,21 +112,41 @@ sub lastfm
 			return;
 		}
 
-		my $content = get("http://ws.audioscrobbler.com/1.0/user/$user/recenttracks.xml");
-		if (!defined $content)
+		if (Irssi::settings_get_bool("lastfm_be_accurate_and_slow"))
 		{
-			Irssi::active_win()->print("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.");
-			return;
-		}
-		$content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s;
+			$content = get("http://www.last.fm/user/$user");
+			if (!defined $content)
+			{
+				Irssi::active_win()->print("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.");
+				return;
+			}
+			$content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s;
 #	print $4, " ", DateTime->now(time_zone => 'UTC')->epoch() - 30 * 60;
-		if ($content eq "" || $4 < DateTime->now(time_zone => 'UTC')->epoch() - 60 * 30)
-		{
-			Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
-			return;
+			if ($content eq "")
+			{
+				Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
+				return;
+			}
+			$content = sprintf($sprintf, $1, $2);
 		}
-		$strftime = strftime($strftime, localtime(scalar($4)));
-		$content = sprintf($sprintf, $1, $2, $3, $strftime);
+		else
+		{
+			$content = get("http://ws.audioscrobbler.com/1.0/user/$user/recenttracks.xml");
+			if (!defined $content)
+			{
+				Irssi::active_win()->print("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.");
+				return;
+			}
+			$content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s;
+#	print $4, " ", DateTime->now(time_zone => 'UTC')->epoch() - 30 * 60;
+			if ($content eq "" || $4 < DateTime->now(time_zone => 'UTC')->epoch() - 60 * 30)
+			{
+				Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
+				return;
+			}
+			$strftime = strftime($strftime, localtime(scalar($4)));
+			$content = sprintf($sprintf, $1, $2, $3, $strftime);
+		}
 		# TODO Check which one that actually is better
 #		Encode::from_to($content, 'utf-8', 'latin1');
 		$content = Encode::decode('utf-8', $content);
