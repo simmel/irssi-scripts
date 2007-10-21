@@ -18,12 +18,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "3.0";
+$VERSION = "3.1";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071019",
+        date        => "20071021",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -35,6 +35,9 @@ $VERSION = "3.0";
 # * Work on printfng for conditional support in "lastfm_sprintf".
 
 # Changelog
+
+# 3.1 -- Sun Oct 21 22:52:36 CEST 2007
+# * Added /np! and $np! to use the "lastfm_be_accurate_and_slow" method without having to change the setting.
 
 # 3.0 -- Fri Oct 19 14:26:03 CEST 2007
 # * Created a new setting "lastfm_be_accurate_and_slow" which makes lastfm.pl parse your profile page to check what song you are playing right now. But be warned, this is slow and horrible (like my code! ; ). But it works until Last.fm makes this data available through their Web Services. This disables the album and "scrobbled at" features of "lastfm_sprintf" so you have to adapt it if you don't want it to look weird. I'm working on a new implementation of printf which allows for conditions but it took more time than I thought and time is something that I don't have much of ='(
@@ -97,6 +100,14 @@ sub cmd_lastfm
 {
 	my ($data, $server, $witem) = @_;
 	lastfm_forky($witem);
+}
+sub cmd_lastfm_now
+{
+	my ($data, $server, $witem) = @_;
+	my $setting = Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
+	Irssi::settings_set_bool("lastfm_be_accurate_and_slow", 1);
+	lastfm_forky($witem);
+	Irssi::settings_set_bool("lastfm_be_accurate_and_slow", $setting);
 }
 
 sub lastfm
@@ -217,7 +228,8 @@ sub input_read {
 	$input_tag = $pid = undef;
 }
 
-Irssi::command_bind('np', 'cmd_lastfm');
+Irssi::command_bind('np', 'cmd_lastfm', 'lastfm');
+Irssi::command_bind('np!', 'cmd_lastfm_now', 'lastfm');
 
 Irssi::signal_add_last 'complete word' => sub {
 	my ($complist, $window, $word, $linestart, $want_space) = @_;
@@ -231,9 +243,19 @@ Irssi::signal_add_last 'complete word' => sub {
 		}
 		push @$complist, "http://last.fm/user/$user/";
 	}
-	elsif ($word =~ /\$(?:nowplaying|np)\(?(\w+)?\)?/)
+	elsif ($word =~ /\$(?:nowplaying|np)(!*)\(?(\w+)?\)?/)
 	{
-		my $nowplaying = lastfm($1);
+		my $setting;
+		if ($1)
+		{
+			$setting = Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
+			Irssi::settings_set_bool("lastfm_be_accurate_and_slow", 1);
+		}
+		my $nowplaying = lastfm($2);
+		if ($1)
+		{
+			Irssi::settings_set_bool("lastfm_be_accurate_and_slow", $setting);
+		}
 		push @$complist, "$nowplaying" if $nowplaying;
 	}
 }
