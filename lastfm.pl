@@ -161,8 +161,6 @@ sub lastfm
 			$strftime = strftime($strftime, localtime(scalar($4)));
 			$content = sprintf($sprintf, $1, $2, $3, $strftime);
 		}
-		# TODO Check which one that actually is better
-#		Encode::from_to($content, 'utf-8', 'latin1');
 		$content = Encode::decode('utf-8', $content);
 		decode_entities($content);
 		return $content;
