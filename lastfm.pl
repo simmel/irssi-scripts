@@ -4,7 +4,6 @@ no strict 'refs';
 use URI::Escape;
 use LWP::Simple;
 use Irssi;
-use DateTime;
 use Encode;
 use HTML::Entities;
 use POSIX qw(strftime);
@@ -18,12 +17,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "3.1";
+$VERSION = "3.2";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071021",
+        date        => "20071024",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -35,6 +34,9 @@ $VERSION = "3.1";
 # * Work on printfng for conditional support in "lastfm_sprintf".
 
 # Changelog
+
+# 3.2 -- Wed Oct 24 23:07:01 CEST 2007
+# * I don't like dependencies and I really wonder why I lastfm depended on DateTime. I remember now that it was morning and I was really tired when I coded it. Anyway, it's removed now. I'll try to remove the dependency for libwww later on.
 
 # 3.1 -- Sun Oct 21 22:52:36 CEST 2007
 # * Added /np! and $np! to use the "lastfm_be_accurate_and_slow" method without having to change the setting.
@@ -132,7 +134,6 @@ sub lastfm
 				return;
 			}
 			$content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s;
-#	print $4, " ", DateTime->now(time_zone => 'UTC')->epoch() - 30 * 60;
 			if (! defined $1)
 			{
 				Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
@@ -149,8 +150,7 @@ sub lastfm
 				return;
 			}
 			$content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s;
-#	print $4, " ", DateTime->now(time_zone => 'UTC')->epoch() - 30 * 60;
-			if ($content eq "" || $4 < DateTime->now(time_zone => 'UTC')->epoch() - 60 * 30)
+			if ($content eq "" || $4 < strftime('%s', localtime()) - 60 * 30)
 			{
 				Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
 				return;
