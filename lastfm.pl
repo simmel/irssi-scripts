@@ -57,7 +57,7 @@ $VERSION = "3.2";
 # * Now you can use $np(darksoy) to see what I play (or someone else for that matter ; ).
 
 # 2.1 -- Tue Jul 17 12:50:18 CEST 2007
-# * Now you can use $np or $nowplaying as a tab-completion too, but a warning here, this is a blocking action so irssi won't respond or be usable until it is finnished or the timeout is hit.
+# * Now you can use $np or $nowplaying as a tab-completion too, but a warning here, this is a blocking action so irssi won't respond or be usable until it is finished or the timeout is hit.
 # * Abstracted it abit more so that it can be used in more ways, ex. for the reason above.
 
 # 2.0 -- Fri Jun 29 10:38:32 CEST 2007
@@ -116,6 +116,7 @@ sub lastfm
 		my $sprintf = Irssi::settings_get_str("lastfm_sprintf");
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my $content;
+		my $url;
 
 		if ($user eq "")
 		{
@@ -125,12 +126,22 @@ sub lastfm
 
 		if (Irssi::settings_get_bool("lastfm_be_accurate_and_slow"))
 		{
-			$content = get("http://www.last.fm/user/$user");
-			if (!defined $content)
-			{
-				Irssi::active_win()->print("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.");
-				return;
-			}
+			$url = "http://www.last.fm/user/$user";
+		}
+		else
+		{
+			$url = "http://ws.audioscrobbler.com/1.0/user/$user/recenttracks.xml";
+		}
+		$content = get($url);
+
+		if (!defined $content)
+		{
+			Irssi::active_win()->print("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.");
+			return;
+		}
+
+		if (Irssi::settings_get_bool("lastfm_be_accurate_and_slow"))
+		{
 			$content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s;
 			if (! defined $1)
 			{
@@ -141,12 +152,6 @@ sub lastfm
 		}
 		else
 		{
-			$content = get("http://ws.audioscrobbler.com/1.0/user/$user/recenttracks.xml");
-			if (!defined $content)
-			{
-				Irssi::active_win()->print("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.");
-				return;
-			}
 			$content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s;
 			if ($content eq "" || $4 < strftime('%s', localtime()) - 60 * 30)
 			{
