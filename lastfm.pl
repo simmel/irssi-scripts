@@ -1,13 +1,11 @@
 sub DEBUG () { 0 }
 use strict;
 no strict 'refs';
-use URI::Escape;
 use LWP::Simple;
 use Irssi;
 use Encode;
 use HTML::Entities;
 use POSIX qw(strftime);
-use Socket;
 if (DEBUG)
 {
 	use Data::Dumper;
@@ -36,7 +34,7 @@ $VERSION = "3.2";
 # Changelog
 
 # 3.2 -- Wed Oct 24 23:07:01 CEST 2007
-# * I don't like dependencies and I really wonder why I lastfm depended on DateTime. I remember now that it was morning and I was really tired when I coded it. Anyway, it's removed now. I'll try to remove the dependency for libwww later on.
+# * I don't like dependencies and I really wonder why I lastfm depended on DateTime. I remember now that it was morning and I was really tired when I coded it. Anyway, it's removed now along with Socket and URI::Escape. I'll try to remove the dependency for libwww later on.
 
 # 3.1 -- Sun Oct 21 22:52:36 CEST 2007
 # * Added /np! and $np! to use the "lastfm_be_accurate_and_slow" method without having to change the setting.
