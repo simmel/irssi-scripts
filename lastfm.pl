@@ -195,7 +195,6 @@ sub lastfm_forky
 		close($writer);
 		POSIX::_exit(1);
 	}
-
 }
 
 sub input_read {
