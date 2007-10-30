@@ -1,4 +1,4 @@
-sub DEBUG () { 0 }
+sub DEBUG () { 1 }
 use strict;
 no strict 'refs';
 use LWP::Simple;
@@ -28,8 +28,10 @@ $VERSION = "3.2";
 # README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information about the settings.
 
 # TODO
-# * Fix better error reporting.
+# * Fix better error reporting. SERIOUSLY, DOIT! http://perldesignpatterns.com/?ErrorReporting maybe?
 # * Work on printfng for conditional support in "lastfm_sprintf".
+# * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
+# * Create "lastfm_sprintf_tab_complete" and make it fallback to "lastfm_sprintf" if it's empty.
 
 # Changelog
 
@@ -84,6 +86,7 @@ Irssi::settings_add_str("lastfm", "lastfm_user", "");
 # See printf(3) for more information.
 # If you want to change the order, use %2$s to get the second arg.
 Irssi::settings_add_str("lastfm", "lastfm_sprintf", 'np: %s-%s');
+Irssi::settings_add_str("lastfm", "lastfm_sprintf_tab_complete", '');
 
 # The strftime(3) syntax used when displaying at what time a song was submitted.
 Irssi::settings_add_str("lastfm", "lastfm_strftime", 'submitted at: %R %Z');
@@ -95,6 +98,9 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 Irssi::settings_add_bool("lastfm", "lastfm_be_accurate_and_slow", 0);
 
 # Move along now, there's nothing here to see.
+
+my $errormsg_pre = "You haven't submitted a song to Last.fm";
+my $errormsg_post = ", maybe Last.fm submission service is down?";
 
 sub cmd_lastfm
 {
@@ -117,7 +123,10 @@ sub lastfm
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my $content;
 		my $url;
+		my $alt;
+		my @caller = caller(1);
 
+		#Sanity checking#{{{
 		if ($user eq "")
 		{
 			Irssi::active_win()->print("You must /set lastfm_user to an username on Last.fm");
@@ -138,29 +147,40 @@ sub lastfm
 		{
 			Irssi::active_win()->print("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.");
 			return;
+		}#}}}
+
+		if (Irssi::settings_get_bool("lastfm_be_accurate_and_slow") && $content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s)
+		{
+		}
+		elsif ($content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s)
+		{
 		}
 
-		if (Irssi::settings_get_bool("lastfm_be_accurate_and_slow"))
+		print Dumper $1, $2, $3, $4 if DEBUG;
+		if ($1 eq "")
 		{
-			$content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s;
-			if (! defined $1)
-			{
-				Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
-				return;
-			}
-			$content = sprintf($sprintf, $1, $2);
+			return "error:" if ($caller[3] eq "Irssi::Script::lastfm::lastfm_forky");
+			$alt = " yet";
+			Irssi::active_win()->print($errormsg_pre.$alt.$errormsg_post);
+			return;
 		}
-		else
+
+		if ($4 ne "")
 		{
-			$content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s;
-			if ($content eq "" || $4 < strftime('%s', localtime()) - 60 * 30)
+			if ($4 < strftime('%s', localtime()) - 60 * 30)
 			{
-				Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
+				return "error:time" if ($caller[3] eq "Irssi::Script::lastfm::lastfm_forky");
+				$alt = " within the last 30 minutes";
+				Irssi::active_win()->print($errormsg_pre.$alt.$errormsg_post);
 				return;
 			}
 			$strftime = strftime($strftime, localtime(scalar($4)));
-			$content = sprintf($sprintf, $1, $2, $3, $strftime);
 		}
+		else
+		{
+			undef $strftime;
+		}
+		$content = sprintf($sprintf, $1, $2, $3, $strftime);
 		$content = Encode::decode('utf-8', $content);
 		decode_entities($content);
 		return $content;
@@ -200,9 +220,13 @@ sub input_read {
 	my @content = <$reader>;
 	my $content = join('', @content);
 
-	if ($content eq "")
+	if ($content eq "error:time")
 	{
-		Irssi::active_win()->print("You haven't submitted a song to Last.fm within the last 30 minutes. (Maybe Last.fm submission service is down?)");
+		Irssi::active_win()->print($errormsg_pre." within the last 30 minutes".$errormsg_post);
+	}
+	elsif ($content eq "error:")
+	{
+		Irssi::active_win()->print($errormsg_pre.$errormsg_post);
 	}
 	else
 	{
