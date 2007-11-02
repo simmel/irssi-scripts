@@ -31,7 +31,6 @@ $VERSION = "3.2";
 # * Fix better error reporting. SERIOUSLY, DOIT! http://perldesignpatterns.com/?ErrorReporting maybe?
 # * Work on printfng for conditional support in "lastfm_sprintf".
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
-# * Create "lastfm_sprintf_tab_complete" and make it fallback to "lastfm_sprintf" if it's empty.
 
 # Changelog
 
@@ -118,13 +117,14 @@ sub cmd_lastfm_now
 
 sub lastfm
 {
-		my $user = shift || Irssi::settings_get_str("lastfm_user");
-		my $sprintf = Irssi::settings_get_str("lastfm_sprintf");
-		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my $content;
 		my $url;
 		my $alt;
+		my $user = shift || Irssi::settings_get_str("lastfm_user");
+		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my @caller = caller(1);
+		my $is_tabbed = ($caller[3] eq "Irssi::Script::lastfm::lastfm_forky") ? 0 : 1;
+		my $sprintf = (Irssi::settings_get_str("lastfm_sprintf_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_sprintf_tab_complete") : Irssi::settings_get_str("lastfm_sprintf");
 
 		#Sanity checking#{{{
 		if ($user eq "")
@@ -159,7 +159,7 @@ sub lastfm
 		print Dumper $1, $2, $3, $4 if DEBUG;
 		if ($1 eq "")
 		{
-			return "error:" if ($caller[3] eq "Irssi::Script::lastfm::lastfm_forky");
+			return "error:" if (!$is_tabbed); # $caller[3] eq "Irssi::Script::lastfm::lastfm_forky");
 			$alt = " yet";
 			Irssi::active_win()->print($errormsg_pre.$alt.$errormsg_post);
 			return;
@@ -169,7 +169,7 @@ sub lastfm
 		{
 			if ($4 < strftime('%s', localtime()) - 60 * 30)
 			{
-				return "error:time" if ($caller[3] eq "Irssi::Script::lastfm::lastfm_forky");
+				return "error:time" if (!$is_tabbed); #$caller[3] eq "Irssi::Script::lastfm::lastfm_forky");
 				$alt = " within the last 30 minutes";
 				Irssi::active_win()->print($errormsg_pre.$alt.$errormsg_post);
 				return;
