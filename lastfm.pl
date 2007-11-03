@@ -29,10 +29,13 @@ $VERSION = "3.2";
 
 # TODO
 # * Fix better error reporting. SERIOUSLY, DOIT! http://perldesignpatterns.com/?ErrorReporting maybe?
-# * Work on printfng for conditional support in "lastfm_sprintf".
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
 
 # Changelog
+
+# 3.3 --
+# * Added conditional sprintf-syntax.
+# Thanks to rindolf, apeiron and Khisanth from #perl@freenode for help with sco
 
 # 3.2 -- Wed Oct 24 23:07:01 CEST 2007
 # * I don't like dependencies and I really wonder why I lastfm depended on DateTime. I remember now that it was morning and I was really tired when I coded it. Anyway, it's removed now along with Socket and URI::Escape. I'll try to remove the dependency for libwww later on.
@@ -180,7 +183,7 @@ sub lastfm
 		{
 			undef $strftime;
 		}
-		$content = sprintf($sprintf, $1, $2, $3, $strftime);
+		$content = sprintfng($sprintf, $1, $2, $3, $strftime);
 		$content = Encode::decode('utf-8', $content);
 		decode_entities($content);
 		return $content;
@@ -250,6 +253,29 @@ sub input_read {
 	Irssi::input_remove($input_tag);
 	close($reader);
 	$input_tag = $pid = undef;
+}
+
+sub printfng ($@)
+{
+	my ($pattern, @args) = @_;
+	my $count = scalar(@args);
+
+	print Dumper $pattern;
+	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($pattern, $1, $count)/eg;
+	print Dumper $pattern;
+	sprintf($pattern, @args);
+}
+
+{
+	my $i;
+	sub checkifexists
+	{
+		$i++;
+		my ($pattern, $condition, $count) = @_;
+		return undef if $i > $count;
+		$condition =~ s/%\((.*)\)*/$1/g;
+		return $condition;
+	}
 }
 
 Irssi::command_bind('np', 'cmd_lastfm', 'lastfm');
