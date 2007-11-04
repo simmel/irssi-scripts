@@ -34,7 +34,7 @@ $VERSION = "3.2";
 # Changelog
 
 # 3.3 --
-# * Added conditional sprintf-syntax.
+# * Finally added conditional sprintf-syntax. Let's say you want to use 'np: %s-%s (%s)' as "lastfm_sprintf". If you use /np it works out fine and displays 'np: Boards of Canada-Energy Warning (Geogaddi)' but what if you use /np! then it displays 'np: Boards of Canada-Energy Warning ()' since /np! can't get the album information. Doesn't that looks ugly? Meet conditional sprintf. Now set your "lastfm_sprintf" to 'np: %s-%s%( (%s))'. ' (%s)' will only be printed if we get a third value, the album name in this case. Smart, huh?
 # Thanks to rindolf, apeiron and Khisanth from #perl@freenode for help with sco
 
 # 3.2 -- Wed Oct 24 23:07:01 CEST 2007
@@ -255,12 +255,12 @@ sub input_read {
 	$input_tag = $pid = undef;
 }
 
-sub printfng ($@)
+sub sprintfng
 {
 	my ($pattern, @args) = @_;
+	@args = grep(/./, @args);
 	my $count = scalar(@args);
 
-	print Dumper $pattern;
 	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($pattern, $1, $count)/eg;
 	print Dumper $pattern;
 	sprintf($pattern, @args);
