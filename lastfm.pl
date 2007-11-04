@@ -258,11 +258,9 @@ sub input_read {
 sub sprintfng
 {
 	my ($pattern, @args) = @_;
-	@args = grep(/./, @args);
-	my $count = scalar(@args);
+	my $count = () = $pattern =~ /%\w/g;
 
-	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($pattern, $1, $count)/eg;
-	print Dumper $pattern;
+	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count)/eg;
 	sprintf($pattern, @args);
 }
 
@@ -271,8 +269,12 @@ sub sprintfng
 	sub checkifexists
 	{
 		$i++;
-		my ($pattern, $condition, $count) = @_;
-		return undef if $i > $count;
+		my ($condition, $count) = @_;
+		if ($i >= $count)
+		{
+			undef $i;
+			return undef;
+		}
 		$condition =~ s/%\((.*)\)*/$1/g;
 		return $condition;
 	}
