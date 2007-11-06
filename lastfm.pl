@@ -15,7 +15,7 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "3.2";
+$VERSION = "3.3";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
@@ -34,8 +34,8 @@ $VERSION = "3.2";
 # Changelog
 
 # 3.3 --
-# * Finally added conditional sprintf-syntax. Let's say you want to use 'np: %s-%s (%s)' as "lastfm_sprintf". If you use /np it works out fine and displays 'np: Boards of Canada-Energy Warning (Geogaddi)' but what if you use /np! then it displays 'np: Boards of Canada-Energy Warning ()' since /np! can't get the album information. Doesn't that looks ugly? Meet conditional sprintf. Now set your "lastfm_sprintf" to 'np: %s-%s%( (%s))'. ' (%s)' will only be printed if we get a third value, the album name in this case. Smart, huh?
-# Thanks to rindolf, apeiron and Khisanth from #perl@freenode for help with sco
+# * Finally added conditional sprintf-syntax! Let's say you want to use 'np: %s-%s (%s)' as "lastfm_sprintf". If you use /np it works out fine and displays 'np: Boards of Canada-Energy Warning (Geogaddi)' but what if you use /np! then it displays 'np: Boards of Canada-Energy Warning ()' since /np! can't get the album information. Doesn't that look ugly? Meet conditional sprintf. Now set your "lastfm_sprintf" to 'np: %s-%s%( (%s))'. ' (%s)' will only be printed if we get a third value, the album name in this case. Smart, huh? Big thanks to rindolf, apeiron and Khisanth from #perl@freenode for help with scoping with global variables.
+# * Also added "lastfm_sprintf_tab_complete" which makes, if set, $np<TAB> use a different sprintf pattern than /np. Will default back to "lastfm_sprintf".
 
 # 3.2 -- Wed Oct 24 23:07:01 CEST 2007
 # * I don't like dependencies and I really wonder why I lastfm depended on DateTime. I remember now that it was morning and I was really tired when I coded it. Anyway, it's removed now along with Socket and URI::Escape. I'll try to remove the dependency for libwww later on.
@@ -162,7 +162,7 @@ sub lastfm
 		print Dumper $1, $2, $3, $4 if DEBUG;
 		if ($1 eq "")
 		{
-			return "error:" if (!$is_tabbed); # $caller[3] eq "Irssi::Script::lastfm::lastfm_forky");
+			return "error:" if (!$is_tabbed);
 			$alt = " yet";
 			Irssi::active_win()->print($errormsg_pre.$alt.$errormsg_post);
 			return;
@@ -172,7 +172,7 @@ sub lastfm
 		{
 			if ($4 < strftime('%s', localtime()) - 60 * 30)
 			{
-				return "error:time" if (!$is_tabbed); #$caller[3] eq "Irssi::Script::lastfm::lastfm_forky");
+				return "error:time" if (!$is_tabbed);
 				$alt = " within the last 30 minutes";
 				Irssi::active_win()->print($errormsg_pre.$alt.$errormsg_post);
 				return;
@@ -260,7 +260,9 @@ sub sprintfng
 	my ($pattern, @args) = @_;
 	my $count = () = $pattern =~ /%\w/g;
 
+	print $pattern, $count;
 	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count)/eg;
+	print $pattern;
 	sprintf($pattern, @args);
 }
 
@@ -270,12 +272,15 @@ sub sprintfng
 	{
 		$i++;
 		my ($condition, $count) = @_;
-		if ($i >= $count)
+		if ($i > $count)
 		{
-			undef $i;
 			return undef;
 		}
-		$condition =~ s/%\((.*)\)*/$1/g;
+		elsif ($i == $count)
+		{
+			undef $i;
+		}
+		$condition =~ s/%\((.*)\)/$1/g;
 		return $condition;
 	}
 }
