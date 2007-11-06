@@ -258,29 +258,38 @@ sub input_read {
 sub sprintfng
 {
 	my ($pattern, @args) = @_;
-	my $count = () = $pattern =~ /%\w/g;
+	my $argc = scalar(grep(/./, @args));
+	my $format_chars = () = $pattern =~ /%\w/g;
 
-	print $pattern, $count;
-	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count)/eg;
-	print $pattern;
+	my $count = ($format_chars > $argc) ? $argc : $format_chars;
+
+	print Dumper "argc=$argc, format_chars=$format_chars, count=$count" if DEBUG;
+	print Dumper "före checkifexists: $pattern" if DEBUG;
+	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count, $format_chars)/eg;
+	print Dumper "efter checkifexists: $pattern" if DEBUG;
 	sprintf($pattern, @args);
 }
 
 {
-	my $i;
+	my $i=0;
 	sub checkifexists
 	{
 		$i++;
-		my ($condition, $count) = @_;
+		my ($condition, $count, $count_max) = @_;
+
+		print "$i vs count: $count max:$count_max \n" if DEBUG;
+		print "pattern: $condition\n" if DEBUG;
 		if ($i > $count)
 		{
-			return undef;
+			print "undef\n" if DEBUG;
+			$condition = undef;
 		}
-		elsif ($i == $count)
+		if ($i == $count_max)
 		{
-			undef $i;
+			print "resetting \$i\n" if DEBUG;
+			$i=0;
 		}
-		$condition =~ s/%\((.*)\)/$1/g;
+		$condition =~ s/%\((.*)\)*/$1/g;
 		return $condition;
 	}
 }
