@@ -20,7 +20,7 @@ $VERSION = "3.3";
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071024",
+        date        => "20071106",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -29,11 +29,13 @@ $VERSION = "3.3";
 
 # TODO
 # * Fix better error reporting. SERIOUSLY, DOIT! http://perldesignpatterns.com/?ErrorReporting maybe?
+# * Cleanup.
+# * Get rid of LWP::Simple dependency.
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
 
 # Changelog
 
-# 3.3 --
+# 3.3 -- Tue Nov  6 01:54:59 CET 2007
 # * Finally added conditional sprintf-syntax! Let's say you want to use 'np: %s-%s (%s)' as "lastfm_sprintf". If you use /np it works out fine and displays 'np: Boards of Canada-Energy Warning (Geogaddi)' but what if you use /np! then it displays 'np: Boards of Canada-Energy Warning ()' since /np! can't get the album information. Doesn't that look ugly? Meet conditional sprintf. Now set your "lastfm_sprintf" to 'np: %s-%s%( (%s))'. ' (%s)' will only be printed if we get a third value, the album name in this case. Smart, huh? Big thanks to rindolf, apeiron and Khisanth from #perl@freenode for help with scoping with global variables.
 # * Also added "lastfm_sprintf_tab_complete" which makes, if set, $np<TAB> use a different sprintf pattern than /np. Will default back to "lastfm_sprintf".
 
@@ -124,19 +126,19 @@ sub lastfm
 		my $url;
 		my $alt;
 		my $user = shift || Irssi::settings_get_str("lastfm_user");
+		my $be_slow = shift || Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my @caller = caller(1);
 		my $is_tabbed = ($caller[3] eq "Irssi::Script::lastfm::lastfm_forky") ? 0 : 1;
 		my $sprintf = (Irssi::settings_get_str("lastfm_sprintf_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_sprintf_tab_complete") : Irssi::settings_get_str("lastfm_sprintf");
 
-		#Sanity checking#{{{
 		if ($user eq "")
 		{
 			Irssi::active_win()->print("You must /set lastfm_user to an username on Last.fm");
 			return;
 		}
 
-		if (Irssi::settings_get_bool("lastfm_be_accurate_and_slow"))
+		if ($be_slow)
 		{
 			$url = "http://www.last.fm/user/$user";
 		}
@@ -150,9 +152,9 @@ sub lastfm
 		{
 			Irssi::active_win()->print("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.");
 			return;
-		}#}}}
+		}
 
-		if (Irssi::settings_get_bool("lastfm_be_accurate_and_slow") && $content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s)
+		if ($be_slow && $content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s)
 		{
 		}
 		elsif ($content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s)
@@ -192,6 +194,7 @@ sub lastfm
 sub lastfm_forky
 {
 	my $witem = shift;
+	my $be_slow = shift || 0;
 	if ($pid or $input_tag)
 	{
 		Irssi::active_win()->print("We're still waiting for Last.fm to return our data or to hit the timeout (this happends when Last.fm is down or very slow).");
@@ -311,17 +314,8 @@ Irssi::signal_add_last 'complete word' => sub {
 	}
 	elsif ($word =~ /\$(?:nowplaying|np)(!*)\(?(\w+)?\)?/)
 	{
-		my $setting;
-		if ($1)
-		{
-			$setting = Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
-			Irssi::settings_set_bool("lastfm_be_accurate_and_slow", 1);
-		}
-		my $nowplaying = lastfm($2);
-		if ($1)
-		{
-			Irssi::settings_set_bool("lastfm_be_accurate_and_slow", $setting);
-		}
+		my $be_slow = ($1) ? 1 : 0;
+		my $nowplaying = lastfm($2, $be_slow);
 		push @$complist, "$nowplaying" if $nowplaying;
 	}
 }
