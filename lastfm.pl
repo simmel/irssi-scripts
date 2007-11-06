@@ -1,4 +1,4 @@
-sub DEBUG () { 1 }
+sub DEBUG () { 0 }
 use strict;
 no strict 'refs';
 use LWP::Simple;
@@ -289,7 +289,7 @@ sub sprintfng
 			print "resetting \$i\n" if DEBUG;
 			$i=0;
 		}
-		$condition =~ s/%\((.*)\)*/$1/g;
+		$condition =~ s/%\((.*)\)/$1/g;
 		return $condition;
 	}
 }
