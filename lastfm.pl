@@ -15,12 +15,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "3.3";
+$VERSION = "3.4";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071106",
+        date        => "20071109",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -34,6 +34,9 @@ $VERSION = "3.3";
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
 
 # Changelog
+
+# 3.4 -- Fri Nov  9 00:23:40 CET 2007
+# * Added /np lastfmusername
 
 # 3.3 -- Tue Nov  6 01:54:59 CET 2007
 # * Finally added conditional sprintf-syntax! Let's say you want to use 'np: %s-%s (%s)' as "lastfm_sprintf". If you use /np it works out fine and displays 'np: Boards of Canada-Energy Warning (Geogaddi)' but what if you use /np! then it displays 'np: Boards of Canada-Energy Warning ()' since /np! can't get the album information. Doesn't that look ugly? Meet conditional sprintf. Now set your "lastfm_sprintf" to 'np: %s-%s%( (%s))'. ' (%s)' will only be printed if we get a third value, the album name in this case. Smart, huh? Big thanks to rindolf, apeiron and Khisanth from #perl@freenode for help with scoping with global variables.
