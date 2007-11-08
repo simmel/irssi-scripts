@@ -109,14 +109,14 @@ my $errormsg_post = ", maybe Last.fm submission service is down?";
 sub cmd_lastfm
 {
 	my ($data, $server, $witem) = @_;
-	lastfm_forky($witem);
+	lastfm_forky($witem, $data);
 }
 sub cmd_lastfm_now
 {
 	my ($data, $server, $witem) = @_;
 	my $setting = Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
 	Irssi::settings_set_bool("lastfm_be_accurate_and_slow", 1);
-	lastfm_forky($witem);
+	lastfm_forky($witem, $data);
 	Irssi::settings_set_bool("lastfm_be_accurate_and_slow", $setting);
 }
 
@@ -194,7 +194,9 @@ sub lastfm
 sub lastfm_forky
 {
 	my $witem = shift;
-	my $be_slow = shift || 0;
+	my $user = shift || 0;
+	my @user = split(/ /, $user);
+	$user = $user[0];
 	if ($pid or $input_tag)
 	{
 		Irssi::active_win()->print("We're still waiting for Last.fm to return our data or to hit the timeout (this happends when Last.fm is down or very slow).");
@@ -215,7 +217,7 @@ sub lastfm_forky
 	else
 	{
 		close($reader);
-		print $writer lastfm();
+		print $writer lastfm($user);
 		close($writer);
 		POSIX::_exit(1);
 	}
