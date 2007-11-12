@@ -15,12 +15,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "3.4";
+$VERSION = "3.5";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071109",
+        date        => "20071112",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -34,6 +34,9 @@ $VERSION = "3.4";
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
 
 # Changelog
+
+# 3.5 -- Mon Nov 12 11:50:46 CET 2007
+# * Fixed the regex for parsing Recently Listened Tracks so that it works when listening with the Lastfm client.
 
 # 3.4 -- Fri Nov  9 00:23:40 CET 2007
 # * Added /np lastfmusername
@@ -157,7 +160,7 @@ sub lastfm
 			return;
 		}
 
-		if ($be_slow && $content =~ m!nowListening.*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s)
+		if ($be_slow && $content =~ m!nowListening".*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s)
 		{
 		}
 		elsif ($content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s)
