@@ -15,12 +15,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "3.5";
+$VERSION = "3.6";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071112",
+        date        => "20071113",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -35,6 +35,9 @@ $VERSION = "3.5";
 # * Read "term_charset" and convert to it before we read write anything.
 
 # Changelog
+
+# 3.6 -- Tue Nov 13 15:22:37 CET 2007
+# * Fixed encoding so that it always the data into the charset that you have specified in "term_charset" which irssi also uses.
 
 # 3.5 -- Mon Nov 12 11:50:46 CET 2007
 # * Fixed the regex for parsing Recently Listened Tracks so that it works when listening with the Lastfm client.
