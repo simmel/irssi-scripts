@@ -32,6 +32,7 @@ $VERSION = "3.5";
 # * Cleanup.
 # * Get rid of LWP::Simple dependency.
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
+# * Read "term_charset" and convert to it before we read write anything.
 
 # Changelog
 
