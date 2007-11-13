@@ -193,7 +193,7 @@ sub lastfm
 			undef $strftime;
 		}
 		$content = sprintfng($sprintf, $1, $2, $3, $strftime);
-		$content = Encode::decode('utf-8', $content);
+		Encode::from_to($content, "utf-8", Irssi::settings_get_str("term_charset"));
 		decode_entities($content);
 		return $content;
 }
