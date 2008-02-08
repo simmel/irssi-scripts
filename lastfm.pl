@@ -1,4 +1,4 @@
-sub DEBUG () { 0 }
+sub DEBUG () { 1 }
 use strict;
 no strict 'refs';
 use LWP::Simple;
@@ -273,15 +273,16 @@ sub input_read {
 sub sprintfng
 {
 	my ($pattern, @args) = @_;
-	my $argc = scalar(grep(/./, @args));
+	my $argc = scalar(@args);
 	my $format_chars = () = $pattern =~ /%\w/g;
 
 	my $count = ($format_chars > $argc) ? $argc : $format_chars;
 
-	print Dumper "argc=$argc, format_chars=$format_chars, count=$count" if DEBUG;
-	print Dumper "före checkifexists: $pattern" if DEBUG;
-	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count, $format_chars)/eg;
-	print Dumper "efter checkifexists: $pattern" if DEBUG;
+	print "argc=$argc, format_chars=$format_chars, count=$count" if DEBUG;
+	print "före checkifexists: $pattern" if DEBUG;
+	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count, $format_chars, @args)/eg;
+	print "efter checkifexists: $pattern" if DEBUG;
+	print Dumper "pattern: $pattern", @args;
 	sprintf($pattern, @args);
 }
 
@@ -290,21 +291,22 @@ sub sprintfng
 	sub checkifexists
 	{
 		$i++;
-		my ($condition, $count, $count_max) = @_;
+		my ($condition, $count, $count_max, @args) = @_;
 
-		print "$i vs count: $count max:$count_max \n" if DEBUG;
-		print "pattern: $condition\n" if DEBUG;
-		if ($i > $count)
+		print "$i vs count: $count max:$count_max" if DEBUG;
+		print "pattern: $condition content: $args[$i-1]" if DEBUG;
+		if ($i > $count || $args[$i-1] eq "")
 		{
 			print "undef\n" if DEBUG;
 			$condition = undef;
 		}
 		if ($i == $count_max)
 		{
-			print "resetting \$i\n" if DEBUG;
+			print "resetting \$i" if DEBUG;
 			$i=0;
 		}
 		$condition =~ s/%\((.*)\)/$1/g;
+		print "returning: $condition";
 		return $condition;
 	}
 }
