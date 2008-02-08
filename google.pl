@@ -1,7 +1,7 @@
-sub DEBUG { 1 }
+sub DEBUG { 0 }
 use strict;
 #use warnings;
-#if (DEBUG) { eval "use Data::Dumper"; }
+if (DEBUG) { eval "use Data::Dumper"; }
 use Data::Dumper;
 use Irssi;
 use URI::Escape;
@@ -222,9 +222,9 @@ Irssi::signal_add_last("message private", "msg_pub_event");
 sub msg_pub_event
 {
 	my ($server, $msg, $nick, $address, $target) = @_;
-	if ($msg =~ /^!g(?:oogle)?\.?f(?:ight)? ("?)(.+?)\1 ("?)(.+?)\3(?: @\s*(.*?))*\s*$/)
+	if ($msg =~ /^!g(?:oogle)?\.?f(?:ight)? (("?).+?\2) (("?).+?\4)(?: @\s*(.*?))*\s*$/)
 	{
-		my $reply = google_fight($2, $4);
+		my $reply = google_fight($1, $3);
 		my $reply_to = $5;
 		if (defined $reply_to)
 		{
