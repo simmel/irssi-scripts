@@ -5,7 +5,7 @@ if (DEBUG) { eval "use Data::Dumper"; }
 use Irssi;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = "2.0";
+$VERSION = "2.1";
 %IRSSI = (
     authors => "Simon 'simmel' Lundström",
     contact => "simmel@(undernet|quakenet|freenode|efnet)",
@@ -13,11 +13,14 @@ $VERSION = "2.0";
     description => "An script which answers to !wp<wikipedia language> <wikipedia article> [@[ ]<nickname to tell it to>]",
     license => "BSDw/e, but please send bugs/improvements/suggestions/nuts/soda to me",
     url     => "http://soy.se/simon/dev/perl/",
-    changed => "2006-11-08"
+    changed => "2008-03-11"
 );
 
 # HISTORY
-# * <2.0 lost due to nonexistant backups so I rewrote it.
+# 2.1
+# * Added the posibility to direct the URL to the channel. Maybe this should be the default?
+# <2.0
+# * Lost due to nonexistant backups so I rewrote it.
 
 # TODO
 # ?
@@ -33,7 +36,11 @@ sub msg_pub_event
 	if ($msg =~ /^!wp[^ ]* (.+)/)
 	{
 		my ($reply, $reply_to) = wp($msg);
-		if (defined $reply_to)
+		if ($target =~ /^(?i)$reply_to$/)
+		{
+			$server->command("MSG $target $reply");
+		}
+		elsif (defined $reply_to)
 		{
 			$server->command("MSG $target $reply_to $reply");
 		}
