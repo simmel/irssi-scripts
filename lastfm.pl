@@ -28,6 +28,7 @@ $VERSION = "3.6";
 # README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information about the settings.
 
 # TODO
+# * Make np! traverse http://ws.audioscrobbler.com/1.0/artist/<artist>/topalbums.xml and search which album the song belongs to, if none or more than one, forget about it.
 # * Fix better error reporting. SERIOUSLY, DOIT! http://perldesignpatterns.com/?ErrorReporting maybe?
 # * Cleanup.
 # * Get rid of LWP::Simple dependency.
