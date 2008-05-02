@@ -4,7 +4,6 @@ no strict 'refs';
 use LWP::Simple;
 use Irssi;
 use Encode;
-use HTML::Entities;
 use POSIX qw(strftime);
 if (DEBUG)
 {
@@ -198,7 +197,6 @@ sub lastfm
 		}
 		$content = sprintfng($sprintf, $1, $2, $3, $strftime);
 		Encode::from_to($content, "utf-8", Irssi::settings_get_str("term_charset"));
-		decode_entities($content);
 		return $content;
 }
 
