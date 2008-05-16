@@ -14,12 +14,12 @@ if (DEBUG)
 use vars qw($VERSION %IRSSI);
 our ($pid, $input_tag) = undef;
 
-$VERSION = "3.6";
+$VERSION = "3.7";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20071113",
+        date        => "20080516",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -27,12 +27,10 @@ $VERSION = "3.6";
 # README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information about the settings.
 
 # TODO
-# * Make np! traverse http://ws.audioscrobbler.com/1.0/artist/<artist>/topalbums.xml and search which album the song belongs to, if none or more than one, forget about it.
 # * Fix better error reporting. SERIOUSLY, DOIT! http://perldesignpatterns.com/?ErrorReporting maybe?
 # * Cleanup.
 # * Get rid of LWP::Simple dependency.
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
-# * Read "term_charset" and convert to it before we read write anything.
 
 # Changelog
 
@@ -135,6 +133,7 @@ sub lastfm
 		my $content;
 		my $url;
 		my $alt;
+		my ($artist, $track, $album, $time);
 		my $user = shift || Irssi::settings_get_str("lastfm_user");
 		my $be_slow = shift || Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
@@ -164,15 +163,27 @@ sub lastfm
 			return;
 		}
 
-		if ($be_slow && $content =~ m!nowListening".*?\<a.*?>(.+?)<\/a>.*?<a.*?>(.+?)<\/a>!s)
+		if ($be_slow && $content =~ m!nowListening".*?\<a.*?>(.+?)<\/a>.*?<a href="(.*?)">(.+?)<\/a>!s)
 		{
+			($artist, $track, $url) = ($1, $3, "http://www.last.fm".$2);
+			if ($url)
+			{
+				print "We got URL: $url" if DEBUG;
+				$content = get($url);
+				if ($content =~ m!<div class="info">\s+<h3><a .*?>(.*?)<\/a>!s)
+				{
+					print "This is the album name: $1" if DEBUG;
+					$album = $1;
+				}
+			}
 		}
 		elsif ($content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s)
 		{
+			($artist, $track, $album, $time) = ($1, $2, $3, $4);
 		}
 
-		print Dumper $1, $2, $3, $4 if DEBUG;
-		if ($1 eq "")
+		print Dumper $artist, $track, $album, $time if DEBUG;
+		if ($artist eq "")
 		{
 			return "error:" if (!$is_tabbed);
 			$alt = " yet";
@@ -180,9 +191,9 @@ sub lastfm
 			return;
 		}
 
-		if ($4 ne "")
+		if ($time ne "")
 		{
-			if ($4 < strftime('%s', localtime()) - 60 * 30)
+			if ($time < strftime('%s', localtime()) - 60 * 30)
 			{
 				return "error:time" if (!$is_tabbed);
 				$alt = " within the last 30 minutes";
@@ -195,7 +206,7 @@ sub lastfm
 		{
 			undef $strftime;
 		}
-		$content = sprintfng($sprintf, $1, $2, $3, $strftime);
+		$content = sprintfng($sprintf, $artist, $track, $album, $strftime);
 		Encode::from_to($content, "utf-8", Irssi::settings_get_str("term_charset"));
 		return $content;
 }
