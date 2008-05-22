@@ -35,6 +35,10 @@ $VERSION = "3.7";
 
 # Changelog
 
+# 3.7 -- Tue Nov 13 15:22:37 CET 2007
+# * Fixed so that /np! and $np! fetches the album title too. This is horribly slow and takes approx. 6s on very fast connection. Last.fm isnt very fast I'm afraid and this is not a good way to do it.
+# * Cleaned up a few places. Started to look at the error handling and it seems to be alot of work.
+
 # 3.6 -- Tue Nov 13 15:22:37 CET 2007
 # * Fixed encoding so that it always the data into the charset that you have specified in "term_charset" which irssi also uses.
 
