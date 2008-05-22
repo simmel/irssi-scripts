@@ -1,4 +1,4 @@
-sub DEBUG () { 1 }
+sub DEBUG () { 0 }
 use strict;
 no strict 'refs';
 use LWP::Simple;
@@ -28,6 +28,7 @@ $VERSION = "3.7";
 
 # TODO
 # * Fix better error reporting. SERIOUSLY, DOIT! http://perldesignpatterns.com/?ErrorReporting maybe?
+#		http://perldoc.perl.org/perlvar.html#%24SIG%7bexpr%7d
 # * Cleanup.
 # * Get rid of LWP::Simple dependency.
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
@@ -130,10 +131,7 @@ sub cmd_lastfm_now
 
 sub lastfm
 {
-		my $content;
-		my $url;
-		my $alt;
-		my ($artist, $track, $album, $time);
+		my ($content, $url, $alt, $artist, $track, $album, $time);
 		my $user = shift || Irssi::settings_get_str("lastfm_user");
 		my $be_slow = shift || Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
