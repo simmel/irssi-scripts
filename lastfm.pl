@@ -19,7 +19,7 @@ $VERSION = "3.7";
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20080516",
+        date        => "20080522",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -35,7 +35,7 @@ $VERSION = "3.7";
 
 # Changelog
 
-# 3.7 -- Tue Nov 13 15:22:37 CET 2007
+# 3.7 -- Thu 22 May 2008 10:33:55 CEST
 # * Fixed so that /np! and $np! fetches the album title too. This is horribly slow and takes approx. 6s on very fast connection. Last.fm isnt very fast I'm afraid and this is not a good way to do it.
 # * Cleaned up a few places. Started to look at the error handling and it seems to be alot of work.
 
