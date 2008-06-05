@@ -1,4 +1,4 @@
-sub DEBUG () { 0 }
+sub DEBUG () { 1 }
 use strict;
 no strict 'refs';
 use LWP::Simple;
@@ -27,6 +27,7 @@ $VERSION = "3.7";
 # README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information about the settings.
 
 # TODO
+# * Using /np or /np! doesn't show any errors when username is not set.
 # * Fix better error reporting. SERIOUSLY, DOIT! http://perldesignpatterns.com/?ErrorReporting maybe?
 #		http://perldoc.perl.org/perlvar.html#%24SIG%7bexpr%7d
 # * Cleanup.
