@@ -211,6 +211,8 @@ sub lastfm
 		}
 		$content = sprintfng($sprintf, $artist, $track, $album, $strftime);
 		$content =~ s/&amp;/&/g;
+		$content =~ s/&gt;/>/g;
+		$content =~ s/&lt;/</g;
 		Encode::from_to($content, "utf-8", Irssi::settings_get_str("term_charset"));
 		return $content;
 }
