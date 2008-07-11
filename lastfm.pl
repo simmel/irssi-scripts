@@ -16,7 +16,7 @@ if (DEBUG)
 }
 use vars qw($VERSION %IRSSI);
 
-$VERSION = "3.8";
+$VERSION = "3.9";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
@@ -33,6 +33,9 @@ $VERSION = "3.8";
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
 
 # Changelog#{{{
+# 3.9 -- Fri 11 Jul 2008 21:49:20 CEST
+# * Fixing a few bugs noticed by supertobbe
+
 # 3.8 -- Fri 11 Jul 2008 18:21:52 CEST
 # * Shaped up error handling and now all error messages are shown.
 # * Added a user configurable debug mode, good for sending in bugs and weird behaviour.
@@ -142,9 +145,8 @@ sub lastfm
 		my ($content, $url, $alt, $artist, $track, $album, $time);
 		my $user = shift || Irssi::settings_get_str("lastfm_user");
 		my $be_slow = shift || Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
+		my $is_tabbed = shift;
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
-		my @caller = caller(1);
-		my $is_tabbed = ($caller[3] =~ /::lastfm_forky$/) ? 0 : 1;
 		my $sprintf = (Irssi::settings_get_str("lastfm_sprintf_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_sprintf_tab_complete") : Irssi::settings_get_str("lastfm_sprintf");
 
 		die("You must /set lastfm_user to a username on Last.fm") if !defined $user;
@@ -332,7 +334,7 @@ Irssi::signal_add_last 'complete word' => sub {
 		my $be_slow = ($1) ? 1 : 0;
 		my $nowplaying;
 		eval {
-			$nowplaying = lastfm($2, $be_slow);
+			$nowplaying = lastfm($2, $be_slow, 1);
 		};
 		if ($@) {
 			Irssi::active_win()->print($1) if ($@ =~ /^(.+) at \(eval \d+\) line \d+/);
