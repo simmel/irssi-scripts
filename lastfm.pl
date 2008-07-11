@@ -14,18 +14,16 @@ if (DEBUG)
 	use Data::Dumper;
 	use warnings;
 }
-
 use vars qw($VERSION %IRSSI);
-our ($pid, $input_tag) = undef;
 
-$VERSION = "3.7";
+$VERSION = "3.8";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20080522",
+        date        => "20080711",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
-        license     => "BSDw/e, please send bug-reports, suggestions, improvements.",
+        license     => "BSD, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
 );
 # README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information about the settings.
@@ -34,7 +32,7 @@ $VERSION = "3.7";
 # * Get rid of LWP::Simple dependency.
 # * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
 
-# Changelog
+# Changelog#{{{
 # 3.8 -- Fri 11 Jul 2008 18:21:52 CEST
 # * Shaped up error handling and now all error messages are shown.
 # * Added a user configurable debug mode, good for sending in bugs and weird behaviour.
@@ -92,7 +90,7 @@ $VERSION = "3.7";
 # * Started using XML instead because we get more info from it, like album (but it's often wrong).
 
 # 1.0 -- Thu Apr 12 16:57:26 CEST 2007
-# * Got fedup with no good Last.fm-based now playing scripts around.
+# * Got fedup with no good Last.fm-based now playing scripts around.#}}}
 
 # Settings
 # The username which you are using on Last.fm
@@ -123,6 +121,7 @@ Irssi::settings_add_bool("lastfm", "lastfm_be_accurate_and_slow", 0);
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
+our ($pid, $input_tag) = undef;
 
 sub cmd_lastfm
 {
@@ -180,7 +179,7 @@ sub lastfm
 			die($errormsg_pre." yet".$errormsg_post);
 		}
 
-		if (!defined $time)
+		if (defined $time)
 		{
 			if ($time < strftime('%s', localtime()) - 60 * 30)
 			{
