@@ -30,7 +30,8 @@ $VERSION = "3.9";
 
 # TODO
 # * Get rid of LWP::Simple dependency.
-# * Fallback for accurate_and_slow to normal if nothing is "now playing" but recently <30min. Maybe irritating? Make it a setting?
+# * Start using the new Last.fm API
+# * Make $np(username) show: username np: artist-track
 
 # Changelog#{{{
 # 3.9 -- Fri 11 Jul 2008 21:49:20 CEST
