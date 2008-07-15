@@ -148,7 +148,7 @@ sub lastfm {
 		my $sprintf = (Irssi::settings_get_str("lastfm_sprintf_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_sprintf_tab_complete") : Irssi::settings_get_str("lastfm_sprintf");
 
 		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
-		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if !defined $user;
+		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
 
 		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
 		$content = get($url);
