@@ -104,9 +104,9 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
 # Move along now, there's nothing here to see.
 
+Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
 sub DEBUG {
 	# Enable debug output.
-	Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
 	Irssi::settings_get_bool("lastfm_debug");
 };
 use strict;
