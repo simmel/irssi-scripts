@@ -1,11 +1,10 @@
 use vars qw($VERSION %IRSSI);
-
-$VERSION = "3.9";
+$VERSION = "4.0";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
         name        => "lastfm",
-        date        => "20080711",
+        date        => "20080715",
         description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
         license     => "BSD, please send bug-reports, suggestions, improvements.",
         url         => "http://soy.se/code/",
@@ -29,34 +28,18 @@ Irssi::settings_add_str("lastfm", "lastfm_sprintf", 'np: %s-%s');
 Irssi::settings_add_str("lastfm", "lastfm_sprintf_tab_complete", '');
 
 # The strftime(3) syntax used when displaying at what time a song was submitted.
-Irssi::settings_add_str("lastfm", "lastfm_strftime", 'submitted at: %R %Z');
+Irssi::settings_add_str("lastfm", "lastfm_strftime", 'scrobbled at: %R %Z');
 
 # If we should use /me instead of /say
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
-# Parse the profile instead, gets accurate data but is *much* slower.
-Irssi::settings_add_bool("lastfm", "lastfm_be_accurate_and_slow", 0);
-
-# Move along now, there's nothing here to see.
-
-sub DEBUG {
-	# Enable debug output.
-	Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
-	Irssi::settings_get_bool("lastfm_debug");
-};
-use strict;
-no strict 'refs';
-use LWP::Simple;
-use Irssi;
-use Encode;
-use POSIX qw(strftime);
-if (DEBUG)
-{
-	use Data::Dumper;
-	use warnings;
-}
-
 # Changelog#{{{
+
+# 4.0 -- Tue 15 Jul 2008 10:17:51 CEST
+# * Fixing a sprintfng-bug which didn't display time if album was not set.
+# * Rewrote the whole script to use Last.fm's API which is very accurate. There is no need for $np! and /np! now, so I'm removing them.
+# * Cleaned up abit.
+
 # 3.9 -- Fri 11 Jul 2008 21:49:20 CEST
 # * Fixing a few bugs noticed by supertobbe
 
@@ -119,99 +102,90 @@ if (DEBUG)
 # 1.0 -- Thu Apr 12 16:57:26 CEST 2007
 # * Got fedup with no good Last.fm-based now playing scripts around.#}}}
 
+# Move along now, there's nothing here to see.
+
+sub DEBUG {
+	# Enable debug output.
+	Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
+	Irssi::settings_get_bool("lastfm_debug");
+};
+use strict;
+no strict 'refs';
+use LWP::Simple;
+use Irssi;
+use Encode;
+use POSIX qw(strftime);
+if (DEBUG) {
+	use Data::Dumper;
+	use warnings;
+}
+
 # TODO
 # * Get rid of LWP::Simple dependency.
-# * Start using the new Last.fm API
 # * Make $np(username) show: username np: artist-track
-# <artist.*?>([^<]+).*<name.*?>([^<]+).*<album.*?>([^<]+).*<date uts="([^"]+).*
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
 our ($pid, $input_tag) = undef;
+my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
 
-sub cmd_lastfm
-{
+sub cmd_lastfm {
 	my ($data, $server, $witem) = @_;
 	lastfm_forky($witem, $data);
 }
-sub cmd_lastfm_now
-{
-	my ($data, $server, $witem) = @_;
-	my $setting = Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
-	Irssi::settings_set_bool("lastfm_be_accurate_and_slow", 1);
-	lastfm_forky($witem, $data);
-	Irssi::settings_set_bool("lastfm_be_accurate_and_slow", $setting);
-}
 
-sub lastfm
-{
+sub lastfm {
 		my ($content, $url, $alt, $artist, $track, $album, $time);
-		my $user = shift || Irssi::settings_get_str("lastfm_user");
-		my $be_slow = shift || Irssi::settings_get_bool("lastfm_be_accurate_and_slow");
+		my $user_shifted = shift;
+		my $user = (!defined $user_shifted && Irssi::settings_get_str("lastfm_user") ne '') ? Irssi::settings_get_str("lastfm_user") : $user_shifted;
 		my $is_tabbed = shift;
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my $sprintf = (Irssi::settings_get_str("lastfm_sprintf_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_sprintf_tab_complete") : Irssi::settings_get_str("lastfm_sprintf");
 
-		die("You must /set lastfm_user to a username on Last.fm") if !defined $user;
+		print Dumper Irssi::settings_get_str("lastfm_user");
+		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
+		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if !defined $user;
+		print Dumper $user;
 
-		my $url = ($be_slow) ? "http://www.last.fm/user/$user" : "http://ws.audioscrobbler.com/1.0/user/$user/recenttracks.xml";
+		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
 		$content = get($url);
 
-		die("Last.fm is probably down or maybe you have set lastfm_user (currently set to: $user) to an non-existant user.") if !defined $content;
+		# TODO This doesn't work because LWP::Simple::get doesn't return any content unless it gets an 200
+		die $1 if ($content =~ m!<lfm status="failed">.*<error .*?>([^<]+)!s);
 
-		if ($be_slow && $content =~ m!nowListening".*?\<a.*?>(.+?)<\/a>.*?<a href="(.*?)">(.+?)<\/a>!s)
-		{
-			($artist, $track, $url) = ($1, $3, "http://www.last.fm".$2);
-			if ($url)
-			{
-				print "We got URL: $url" if DEBUG;
-				$content = get($url);
-				if ($content =~ m!<div class="info">\s+<h3><a .*?>(.*?)<\/a>!s)
-				{
-					print "This is the album name: $1" if DEBUG;
-					$album = $1;
-				}
-			}
-		}
-		elsif ($content =~ m!<artist [^>]+>\s*?(.+?)\s*?</artist>\s+<name>\s*?(.+?)\s*?</name>.+?<album .+?>(.*?)(?:</album>)?\n.+?<date uts="(\d+)"!s)
-		{
+		if ($content =~ m!<artist.*?>([^<]+).*<name.*?>([^<]+).*<album.*?>([^<]*).*<date uts="([^"]*).*!s) {
 			($artist, $track, $album, $time) = ($1, $2, $3, $4);
 		}
-
 		print Dumper $artist, $track, $album, $time if DEBUG;
-		if (!defined $artist)
-		{
+
+		if (!defined $artist) {
 			die($errormsg_pre." yet".$errormsg_post);
 		}
 
-		if (defined $time)
-		{
-			if ($time < strftime('%s', localtime()) - 60 * 30)
-			{
+		if (defined $time) {
+			if ($time < strftime('%s', localtime()) - 60 * 30) {
 				die($errormsg_pre." within the last 30 minutes".$errormsg_post);
 			}
 			$strftime = strftime($strftime, localtime(scalar($4)));
 		}
-		else
-		{
+		else {
 			undef $strftime;
 		}
 		$content = sprintfng($sprintf, $artist, $track, $album, $strftime);
 		$content =~ s/&amp;/&/g;
 		$content =~ s/&gt;/>/g;
 		$content =~ s/&lt;/</g;
+		$content =~ s/&quot;/"/g;
 		Encode::from_to($content, "utf-8", Irssi::settings_get_str("term_charset"));
 		return $content;
 }
 
-sub lastfm_forky
-{
+sub lastfm_forky {
 	my $witem = shift;
 	my $user = shift || 0;
 	my @user = split(/ /, $user);
 	$user = $user[0];
-	if ($pid or $input_tag)
-	{
+	if ($pid or $input_tag) {
 		Irssi::active_win()->print("We're still waiting for Last.fm to return our data or to hit the timeout (this happends when Last.fm is down or very slow).");
 		return;
 	}
@@ -224,8 +198,7 @@ sub lastfm_forky
 		close $writer;
 		return;
 	}
-	if ($pid > 0)
-	{
+	if ($pid > 0) {
 		close $writer;
 		Irssi::pidwait_add($pid);
 		my @args = ($witem, $reader);
@@ -252,21 +225,16 @@ sub input_read {
 	if ($content =~ /^(.+) at \(eval \d+\) line \d+/) {
 		Irssi::active_win()->print($1);
 	}
-	else
-	{
-		if (defined $witem->{type} && $witem->{type} =~ /^QUERY|CHANNEL$/)
-		{
-			if (Irssi::settings_get_bool("lastfm_use_action"))
-			{
+	else {
+		if (defined $witem->{type} && $witem->{type} =~ /^QUERY|CHANNEL$/) {
+			if (Irssi::settings_get_bool("lastfm_use_action")) {
 				$witem->command("me $content");
 			}
-			else
-			{
+			else {
 				$witem->command("say $content");
 			}
 		}
-		else
-		{
+		else {
 			print($content);
 		}
 	}
@@ -276,8 +244,7 @@ sub input_read {
 	$input_tag = $pid = undef;
 }
 
-sub sprintfng
-{
+sub sprintfng {
 	my ($pattern, @args) = @_;
 	my $argc = scalar(@args);
 	my $format_chars = () = $pattern =~ /%\w/g;
@@ -294,20 +261,18 @@ sub sprintfng
 
 {
 	my $i=0;
-	sub checkifexists
-	{
+	sub checkifexists {
 		$i++;
 		my ($condition, $count, $count_max, @args) = @_;
 
 		print "$i vs count: $count max:$count_max" if DEBUG;
+		$condition =~ s/%(\w)/%$i\$s/;
 		print "pattern: $condition content: $args[$i-1]" if DEBUG;
-		if ($i > $count || $args[$i-1] eq "")
-		{
+		if ($i > $count || $args[$i-1] eq "") {
 			print "undef\n" if DEBUG;
 			$condition = undef;
 		}
-		if ($i == $count_max)
-		{
+		if ($i == $count_max) {
 			print "resetting \$i" if DEBUG;
 			$i=0;
 		}
@@ -318,26 +283,22 @@ sub sprintfng
 }
 
 Irssi::command_bind('np', 'cmd_lastfm', 'lastfm');
-Irssi::command_bind('np!', 'cmd_lastfm_now', 'lastfm');
 
 Irssi::signal_add_last 'complete word' => sub {
 	my ($complist, $window, $word, $linestart, $want_space) = @_;
-	if ($word =~ /\$(lastfm|lfm)/)
-	{
+	my $is_tabbed = 1;
+	if ($word =~ /\$(lastfm|lfm)/) {
 		my $user = Irssi::settings_get_str("lastfm_user");
-		if (!defined $user)
-		{
+		if (!defined $user) {
 			Irssi::active_win()->print("You must /set lastfm_user to a username on Last.fm");
 			return;
 		}
 		push @$complist, "http://last.fm/user/$user/";
 	}
-	elsif ($word =~ /\$(?:nowplaying|np)(!*)\(?(\w+)?\)?/)
-	{
-		my $be_slow = ($1) ? 1 : 0;
+	elsif ($word =~ /\$(?:nowplaying|np)\(?(\w+)?\)?/) {
 		my $nowplaying;
 		eval {
-			$nowplaying = lastfm($2, $be_slow, 1);
+			$nowplaying = lastfm($1, $is_tabbed);
 		};
 		if ($@) {
 			Irssi::active_win()->print($1) if ($@ =~ /^(.+) at \(eval \d+\) line \d+/);
