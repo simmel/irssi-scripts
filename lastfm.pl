@@ -1,5 +1,5 @@
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.1";
+$VERSION = "4.2";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
@@ -34,6 +34,10 @@ Irssi::settings_add_str("lastfm", "lastfm_strftime", 'scrobbled at: %R %Z');
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
 # Changelog#{{{
+
+# 4.2 -- Tue 15 Jul 2008 15:40:08 CEST
+# Yay! Three new version within a day! (No, I'm not bored at work)
+# * Made /np username and $np(username) make username the prefix of np: yadayada or whatever your lastfm_sprintf or lastfm_sprintf_tab_complete is.
 
 # 4.1 -- Tue 15 Jul 2008 15:23:03 CEST
 # Well, that version lasted long!
@@ -128,7 +132,6 @@ if (DEBUG) {
 
 # TODO
 # * Get rid of LWP::Simple dependency.
-# * Make $np(username) show: username np: artist-track
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
@@ -142,7 +145,8 @@ sub cmd_lastfm {
 
 sub lastfm {
 		my ($content, $url, $alt, $artist, $track, $album, $time);
-		my $user = shift || Irssi::settings_get_str("lastfm_user");
+		my $user_shifted = shift;
+		my $user = $user_shifted || Irssi::settings_get_str("lastfm_user");
 		my $is_tabbed = shift;
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my $sprintf = (Irssi::settings_get_str("lastfm_sprintf_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_sprintf_tab_complete") : Irssi::settings_get_str("lastfm_sprintf");
@@ -180,6 +184,7 @@ sub lastfm {
 		$content =~ s/&lt;/</g;
 		$content =~ s/&quot;/"/g;
 		Encode::from_to($content, "utf-8", Irssi::settings_get_str("term_charset"));
+		$content = "$user_shifted $content" if $user_shifted;
 		return $content;
 }
 
