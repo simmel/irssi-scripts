@@ -1,5 +1,5 @@
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.0";
+$VERSION = "4.1";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(undernet|quakenet|freenode)',
@@ -34,6 +34,11 @@ Irssi::settings_add_str("lastfm", "lastfm_strftime", 'scrobbled at: %R %Z');
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
 # Changelog#{{{
+
+# 4.1 -- Tue 15 Jul 2008 15:23:03 CEST
+# Well, that version lasted long!
+# * Fixed a bug with /np not working.
+# * Fixed an issue where debug info would be printed even if lastfm_debug was off.
 
 # 4.0 -- Tue 15 Jul 2008 10:17:51 CEST
 # * Fixing a sprintfng-bug which didn't display time if album was not set.
@@ -104,11 +109,12 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
 # Move along now, there's nothing here to see.
 
-Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
 sub DEBUG {
 	# Enable debug output.
+	Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
 	Irssi::settings_get_bool("lastfm_debug");
 };
+print "debug" if DEBUG;
 use strict;
 no strict 'refs';
 use LWP::Simple;
@@ -136,16 +142,13 @@ sub cmd_lastfm {
 
 sub lastfm {
 		my ($content, $url, $alt, $artist, $track, $album, $time);
-		my $user_shifted = shift;
-		my $user = (!defined $user_shifted && Irssi::settings_get_str("lastfm_user") ne '') ? Irssi::settings_get_str("lastfm_user") : $user_shifted;
+		my $user = shift || Irssi::settings_get_str("lastfm_user");
 		my $is_tabbed = shift;
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my $sprintf = (Irssi::settings_get_str("lastfm_sprintf_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_sprintf_tab_complete") : Irssi::settings_get_str("lastfm_sprintf");
 
-		print Dumper Irssi::settings_get_str("lastfm_user");
 		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
 		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if !defined $user;
-		print Dumper $user;
 
 		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
 		$content = get($url);
@@ -255,7 +258,7 @@ sub sprintfng {
 	print "before checkifexists: $pattern" if DEBUG;
 	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count, $format_chars, @args)/eg;
 	print "after checkifexists: $pattern" if DEBUG;
-	print Dumper "pattern: $pattern", @args;
+	print Dumper "pattern: $pattern", @args if DEBUG;
 	sprintf($pattern, @args);
 }
 
@@ -277,7 +280,7 @@ sub sprintfng {
 			$i=0;
 		}
 		$condition =~ s/%\((.*)\)/$1/g;
-		print "returning: $condition";
+		print "returning: $condition" if DEBUG;
 		return $condition;
 	}
 }
