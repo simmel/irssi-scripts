@@ -1,3 +1,44 @@
+use vars qw($VERSION %IRSSI);
+
+$VERSION = "3.9";
+%IRSSI = (
+        authors     => "Simon 'simmel' Lundström",
+        contact     => 'simmel@(undernet|quakenet|freenode)',
+        name        => "lastfm",
+        date        => "20080711",
+        description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
+        license     => "BSD, please send bug-reports, suggestions, improvements.",
+        url         => "http://soy.se/code/",
+);
+# README: Read the description above and /set those settings (the ones quoted with double-quotes). Settings are described just under this text.
+
+# Settings
+# The username which you are using on Last.fm
+Irssi::settings_add_str("lastfm", "lastfm_user", "");
+
+# The printf-string that you want to use.
+# There are four %s's that you can use at the moment. They represent:
+# 1, Artist
+# 2, Title of the song
+# 3, Title of the album
+# 4, The time it was submitted, configurable via lastfm_strftime
+# For example: "np: %s-%s" expands to "np: The Prodigy-You'll be under my wheels".
+# See printf(3) for more information.
+# If you want to change the order, use %2$s to get the second arg.
+Irssi::settings_add_str("lastfm", "lastfm_sprintf", 'np: %s-%s');
+Irssi::settings_add_str("lastfm", "lastfm_sprintf_tab_complete", '');
+
+# The strftime(3) syntax used when displaying at what time a song was submitted.
+Irssi::settings_add_str("lastfm", "lastfm_strftime", 'submitted at: %R %Z');
+
+# If we should use /me instead of /say
+Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
+
+# Parse the profile instead, gets accurate data but is *much* slower.
+Irssi::settings_add_bool("lastfm", "lastfm_be_accurate_and_slow", 0);
+
+# Move along now, there's nothing here to see.
+
 sub DEBUG {
 	# Enable debug output.
 	Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
@@ -14,24 +55,6 @@ if (DEBUG)
 	use Data::Dumper;
 	use warnings;
 }
-use vars qw($VERSION %IRSSI);
-
-$VERSION = "3.9";
-%IRSSI = (
-        authors     => "Simon 'simmel' Lundström",
-        contact     => 'simmel@(undernet|quakenet|freenode)',
-        name        => "lastfm",
-        date        => "20080711",
-        description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
-        license     => "BSD, please send bug-reports, suggestions, improvements.",
-        url         => "http://soy.se/code/",
-);
-# README: Read the description above and /set those settings (the ones quoted with double-quotes). Scroll down to Settings for a more information about the settings.
-
-# TODO
-# * Get rid of LWP::Simple dependency.
-# * Start using the new Last.fm API
-# * Make $np(username) show: username np: artist-track
 
 # Changelog#{{{
 # 3.9 -- Fri 11 Jul 2008 21:49:20 CEST
@@ -96,32 +119,11 @@ $VERSION = "3.9";
 # 1.0 -- Thu Apr 12 16:57:26 CEST 2007
 # * Got fedup with no good Last.fm-based now playing scripts around.#}}}
 
-# Settings
-# The username which you are using on Last.fm
-Irssi::settings_add_str("lastfm", "lastfm_user", "");
-
-# The printf-string that you want to use.
-# There are four %s's that you can use at the moment. They represent:
-# 1, Artist
-# 2, Title of the song
-# 3, Title of the album
-# 4, The time it was submitted, configurable via lastfm_strftime
-# For example: "np: %s-%s" expands to "np: The Prodigy-You'll be under my wheels".
-# See printf(3) for more information.
-# If you want to change the order, use %2$s to get the second arg.
-Irssi::settings_add_str("lastfm", "lastfm_sprintf", 'np: %s-%s');
-Irssi::settings_add_str("lastfm", "lastfm_sprintf_tab_complete", '');
-
-# The strftime(3) syntax used when displaying at what time a song was submitted.
-Irssi::settings_add_str("lastfm", "lastfm_strftime", 'submitted at: %R %Z');
-
-# If we should use /me instead of /say
-Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
-
-# Parse the profile instead, gets accurate data but is *much* slower.
-Irssi::settings_add_bool("lastfm", "lastfm_be_accurate_and_slow", 0);
-
-# Move along now, there's nothing here to see.
+# TODO
+# * Get rid of LWP::Simple dependency.
+# * Start using the new Last.fm API
+# * Make $np(username) show: username np: artist-track
+# <artist.*?>([^<]+).*<name.*?>([^<]+).*<album.*?>([^<]+).*<date uts="([^"]+).*
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
