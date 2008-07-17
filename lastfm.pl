@@ -20,7 +20,7 @@ $VERSION = "4.2";
 
 # SETTINGS
 # NOTE: Do not set these options here, use /set <option> <value> in irssi!
-# This is just defaults and descriptions on what the options do.
+# These are just defaults and descriptions on what the options do.
 
 # The username which you are using on Last.fm
 Irssi::settings_add_str("lastfm", "lastfm_user", "");
