@@ -2,16 +2,26 @@ use vars qw($VERSION %IRSSI);
 $VERSION = "4.2";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
-        contact     => 'simmel@(undernet|quakenet|freenode)',
+        contact     => 'simmel@(freenode|quakenet|efnet)',
         name        => "lastfm",
         date        => "20080715",
-        description => 'Show with /np or $np<TAB> what song "lastfm_user" last submitted to Last.fm via /me, if "lastfm_use_action" is set, or /say (default) with an configurable message, via "lastfm_sprintf" with option to display a when it was submitted with "lastfm_strftime". Turning on "lastfm_be_accurate_and_slow" enables more accurate results but is *very* slow.',
-        license     => "BSD, please send bug-reports, suggestions, improvements.",
+        description => 'An now-playing-script which uses Last.fm',
+        license     => "BSD",
         url         => "http://soy.se/code/",
 );
-# README: Read the description above and /set those settings (the ones quoted with double-quotes). Settings are described just under this text.
+# USAGE
+# For details on how to use each setting, scroll down to the SETTINGS section.
 
-# Settings
+# * Show with /np or $np<TAB> what song "lastfm_user" last scrobbled to Last.fm via /say. If "lastfm_use_action" is set, it uses /me.
+# * To see what another user on Last.fm is playing is also possible via /np <username> or $np(<username>).
+# The now-playing message is configurable via via "lastfm_sprintf" (and lastfm_sprintf_tab_complete when using $np). "lastfm_strftime" can be used to configure the display of date and time when the song was scrobbled.
+
+# Right now lastfm.pl depends on LWP::Simple, but hopefully this will change in the future. The package in your package system is probably called something with libwww and perl and/or p5 in it.
+
+# SETTINGS
+# NOTE: Do not set these options here, use /set <option> <value> in irssi!
+# This is just defaults and descriptions on what the options do.
+
 # The username which you are using on Last.fm
 Irssi::settings_add_str("lastfm", "lastfm_user", "");
 
@@ -20,10 +30,12 @@ Irssi::settings_add_str("lastfm", "lastfm_user", "");
 # 1, Artist
 # 2, Title of the song
 # 3, Title of the album
-# 4, The time it was submitted, configurable via lastfm_strftime
+# 4, The time it was submitted, configurable via "lastfm_strftime"
 # For example: "np: %s-%s" expands to "np: The Prodigy-You'll be under my wheels".
 # See printf(3) for more information.
 # If you want to change the order, use %2$s to get the second arg.
+# I have exteded printf where so that you can use %() as an optional format string. The %s inside an %() is only printed if there is any data for the %s. So for an example if you use "np: %s-%s (%s)" as the "lastfm_sprintf" and the albumname is missing you'll get "np: joplex-arcade (short mix) ()" since Last.fm doesn't know any album title for this artist. If we use "np: %s-%s%( (%s))" we will simple get "np: joplex-arcade (short mix)" since the last %s is not defined and therefor not printed. Nifty, huh?
+# If "lastfm_sprintf_tab_complete" is not defined, "lastfm_sprintf" will be used instead.
 Irssi::settings_add_str("lastfm", "lastfm_sprintf", 'np: %s-%s');
 Irssi::settings_add_str("lastfm", "lastfm_sprintf_tab_complete", '');
 
@@ -32,6 +44,8 @@ Irssi::settings_add_str("lastfm", "lastfm_strftime", 'scrobbled at: %R %Z');
 
 # If we should use /me instead of /say
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
+
+# To use the "lastfm_debug" setting you'll need to install the Data::Dumper CPAN plugin.
 
 # Changelog#{{{
 
