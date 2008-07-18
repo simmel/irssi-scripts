@@ -1,4 +1,4 @@
-use Irssi qw(signal_add signal_continue command_bind active_win settings_add_str settings_get_str);
+use Irssi qw(signal_add signal_continue signal_stop signal_emit command_bind active_win settings_add_str settings_get_str);
 use vars qw($VERSION %IRSSI);
 $VERSION = "1.0";
 %IRSSI = (
@@ -31,7 +31,7 @@ sub old {
 		$url .= settings_get_str("old_marker");
 	}
 	else {
-		open URLS, "> $url_file";
+		open URLS, ">> $url_file";
 		print URLS "$url\n";
 		close URLS;
 	}
@@ -58,7 +58,7 @@ sub message_kick {
 	signal_continue($server, $channel, $nick, $kicker, $address, $reason);
 }
 sub message_topic {
-	my ($server, $channel, $topic, $nick, $address);
+	my ($server, $channel, $topic, $nick, $address) = @_;
 	$topic =~ s#$url_regex#old($1)#ge;
 	signal_continue($server, $channel, $topic, $nick, $address);
 }
