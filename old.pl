@@ -1,23 +1,32 @@
-use Irssi qw(signal_add signal_continue signal_stop signal_emit command_bind active_win settings_add_str settings_get_str);
+use Irssi qw(signal_add signal_continue signal_stop signal_emit command_bind active_win settings_add_str settings_get_str settings_add_bool settings_get_bool);
 use vars qw($VERSION %IRSSI);
-$VERSION = "1.0";
+$VERSION = "1.1";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet)',
         name        => "old",
-        date        => "20080718",
+        date        => "20080720",
         description => 'Appends an configurable character (asterisk by default) to URLs you have seen before and gives you the possibility to check before posting old URLs via /old',
         license     => "BSD",
         url         => "http://soy.se/code/",
 );
 # USAGE
 # /set old_marker <character>
+# /set old_self <ON|OFF> # if the URLs you paste yourself should be checked
 # /old <URL>
+
+# CHANGELOG#{{{
+# 1.1 -- Sun 20 Jul 2008 13:09:22 CEST
+# * Added the config option "old_self" to be able turn of old check for your own URLs.
+
+# 1.0 -- Fri 18 Jul 2008 22:13:22 CEST
+# * Initial version#}}}
 
 my $url_regex = qr!(https?://\S+)!;
 die "Can't find grep in your \$PATH" unless (`which grep`);
 
 settings_add_str("old", "old_marker", "*");
+settings_add_bool("old", "old_self", 1);
 
 sub cmd_old {
 	my ($url) = @_;
@@ -64,13 +73,17 @@ sub message_topic {
 }
 sub message_own_public {
 	my ($server, $msg, $target) = @_;
-	$msg =~ s#$url_regex#old($1)#ge;
-	signal_continue($server, $msg, $target);
+	if (settings_get_bool("old_self")) {
+		$msg =~ s#$url_regex#old($1)#ge;
+		signal_continue($server, $msg, $target);
+	}
 }
 sub message_own_private {
 	my ($server, $msg, $target, $orig_target) = @_;
-	$msg =~ s#$url_regex#old($1)#ge;
-	signal_continue($server, $msg, $target, $orig_target);
+	if (settings_get_bool("old_self")) {
+		$msg =~ s#$url_regex#old($1)#ge;
+		signal_continue($server, $msg, $target, $orig_target);
+	}
 }
 
 signal_add('message own_public', 'message_own_public');
