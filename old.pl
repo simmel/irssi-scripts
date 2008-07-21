@@ -1,11 +1,11 @@
 use Irssi qw(signal_add signal_continue signal_stop signal_emit command_bind active_win settings_add_str settings_get_str settings_add_bool settings_get_bool);
 use vars qw($VERSION %IRSSI);
-$VERSION = "1.1";
+$VERSION = "1.2";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet)',
         name        => "old",
-        date        => "20080720",
+        date        => "20080721",
         description => 'Appends an configurable character (asterisk by default) to URLs you have seen before and gives you the possibility to check before posting old URLs via /old',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -16,6 +16,9 @@ $VERSION = "1.1";
 # /old <URL>
 
 # CHANGELOG#{{{
+# 1.2 -- Mon 21 Jul 2008 10:00:53 CEST
+# * There was an issue and potentionally an security problem with my grep-line.
+
 # 1.1 -- Sun 20 Jul 2008 13:09:22 CEST
 # * Added the config option "old_self" to be able turn of old check for your own URLs.
 
@@ -36,7 +39,7 @@ sub cmd_old {
 sub old {
 	my ($url) = @_;
 	my $url_file = Irssi::get_irssi_dir."/old_urls.log";
-	if (`grep "$url" $url_file &>/dev/null`) {
+	if (`grep '$url' '$url_file' &>/dev/null`) {
 		$url .= settings_get_str("old_marker");
 	}
 	else {
