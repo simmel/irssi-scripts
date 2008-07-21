@@ -1,10 +1,10 @@
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.2";
+$VERSION = "4.3";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet)',
         name        => "lastfm",
-        date        => "20080715",
+        date        => "20080721",
         description => 'An now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -48,6 +48,9 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 # To use the "lastfm_debug" setting you'll need to install the Data::Dumper CPAN plugin.
 
 # Changelog#{{{
+
+# 4.3 -- Mon 21 Jul 2008 08:46:36 CEST
+# * Seem like I misunderstood the protocol. The date/time is only sent when we have scrobbled the track, not when we started to listen to it.
 
 # 4.2 -- Tue 15 Jul 2008 15:40:08 CEST
 # Yay! Three new version within a day! (No, I'm not bored at work)
@@ -132,7 +135,7 @@ sub DEBUG {
 	Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
 	Irssi::settings_get_bool("lastfm_debug");
 };
-print "debug" if DEBUG;
+
 use strict;
 no strict 'refs';
 use LWP::Simple;
@@ -169,12 +172,13 @@ sub lastfm {
 		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
 
 		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
+		print "Checking for scrobbles at: $url" if DEBUG;
 		$content = get($url);
 
 		# TODO This doesn't work because LWP::Simple::get doesn't return any content unless it gets an 200
 		die $1 if ($content =~ m!<lfm status="failed">.*<error .*?>([^<]+)!s);
 
-		if ($content =~ m!<artist.*?>([^<]+).*<name.*?>([^<]+).*<album.*?>([^<]*).*<date uts="([^"]*).*!s) {
+		if ($content =~ m!(?:nowplaying="true").*<artist.*?>([^<]+).*<name.*?>([^<]+).*<album.*?>([^<]*).*(?:<date uts="([^"]*))?.*!s) {
 			($artist, $track, $album, $time) = ($1, $2, $3, $4);
 		}
 		print Dumper $artist, $track, $album, $time if DEBUG;
