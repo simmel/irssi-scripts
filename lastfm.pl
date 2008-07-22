@@ -155,6 +155,12 @@ my $errormsg_post = ", maybe Last.fm submission service is down?";
 our ($pid, $input_tag) = undef;
 my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
 
+sub print_raw {
+	my $data = join('', @_);
+	$data =~ s/%/%%/g;
+	print $data;
+}
+
 sub cmd_lastfm {
 	my ($data, $server, $witem) = @_;
 	lastfm_forky($witem, $data);
@@ -172,7 +178,7 @@ sub lastfm {
 		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
 
 		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
-		print "Checking for scrobbles at: $url" if DEBUG;
+		print_raw "Checking for scrobbles at: $url" if DEBUG;
 		$content = get($url);
 
 		# TODO This doesn't work because LWP::Simple::get doesn't return any content unless it gets an 200
@@ -181,7 +187,7 @@ sub lastfm {
 		if ($content =~ m!(?:nowplaying="true").*<artist.*?>([^<]+).*<name.*?>([^<]+).*<album.*?>([^<]*).*(?:<date uts="([^"]*))?.*!s) {
 			($artist, $track, $album, $time) = ($1, $2, $3, $4);
 		}
-		print Dumper $artist, $track, $album, $time if DEBUG;
+		print_raw Dumper $artist, $track, $album, $time if DEBUG;
 
 		if (!defined $artist) {
 			die($errormsg_pre." yet".$errormsg_post);
@@ -278,10 +284,10 @@ sub sprintfng {
 	my $count = ($format_chars > $argc) ? $argc : $format_chars;
 
 	print "argc=$argc, format_chars=$format_chars, count=$count" if DEBUG;
-	print "before checkifexists: $pattern" if DEBUG;
+	print_raw "before checkifexists: $pattern" if DEBUG;
 	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count, $format_chars, @args)/eg;
-	print "after checkifexists: $pattern" if DEBUG;
-	print Dumper "pattern: $pattern", @args if DEBUG;
+	print_raw "after checkifexists: $pattern" if DEBUG;
+	print_raw Dumper "pattern: $pattern", @args if DEBUG;
 	sprintf($pattern, @args);
 }
 
@@ -293,7 +299,7 @@ sub sprintfng {
 
 		print "$i vs count: $count max:$count_max" if DEBUG;
 		$condition =~ s/%(\w)/%$i\$s/;
-		print "pattern: $condition content: $args[$i-1]" if DEBUG;
+		print_raw "pattern: $condition content: $args[$i-1]" if DEBUG;
 		if ($i > $count || $args[$i-1] eq "") {
 			print "undef\n" if DEBUG;
 			$condition = undef;
@@ -303,7 +309,7 @@ sub sprintfng {
 			$i=0;
 		}
 		$condition =~ s/%\((.*)\)/$1/g;
-		print "returning: $condition" if DEBUG;
+		print_raw "returning: $condition" if DEBUG;
 		return $condition;
 	}
 }
@@ -331,4 +337,4 @@ Irssi::signal_add_last 'complete word' => sub {
 		}
 		push @$complist, "$nowplaying" if $nowplaying;
 	}
-}
+};
