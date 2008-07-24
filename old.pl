@@ -39,7 +39,7 @@ sub cmd_old {
 sub old {
 	my ($url) = @_;
 	my $url_file = Irssi::get_irssi_dir."/old_urls.log";
-	if (`grep '$url' '$url_file' &>/dev/null`) {
+	if (`grep -F '$url' '$url_file' &>/dev/null`) {
 		$url .= settings_get_str("old_marker");
 	}
 	else {
