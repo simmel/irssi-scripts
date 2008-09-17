@@ -12,9 +12,9 @@ $VERSION = "4.3";
 # USAGE
 # For details on how to use each setting, scroll down to the SETTINGS section.
 
-# * Show with /np or $np<TAB> what song "lastfm_user" last scrobbled to Last.fm via /say. If "lastfm_use_action" is set, it uses /me.
-# * To see what another user on Last.fm is playing is also possible via /np <username> or $np(<username>).
-# The now-playing message is configurable via via "lastfm_sprintf" (and lastfm_sprintf_tab_complete when using $np). "lastfm_strftime" can be used to configure the display of date and time when the song was scrobbled.
+# * Show with /np or %np<TAB> what song "lastfm_user" last scrobbled to Last.fm via /say. If "lastfm_use_action" is set, it uses /me.
+# * To see what another user on Last.fm is playing is also possible via /np <username> or %np(<username>).
+# The now-playing message is configurable via via "lastfm_output" (and lastfm_output_tab_complete when using %np). "lastfm_strftime" can be used to configure the display of date and time when the song was scrobbled.
 
 # Right now lastfm.pl depends on LWP::Simple, but hopefully this will change in the future. The package in your package system is probably called something with libwww and perl and/or p5 in it.
 
@@ -25,19 +25,17 @@ $VERSION = "4.3";
 # The username which you are using on Last.fm
 Irssi::settings_add_str("lastfm", "lastfm_user", "");
 
-# The printf-string that you want to use.
-# There are four %s's that you can use at the moment. They represent:
-# 1, Artist
-# 2, Title of the song
-# 3, Title of the album
-# 4, The time it was submitted, configurable via "lastfm_strftime"
-# For example: "np: %s-%s" expands to "np: The Prodigy-You'll be under my wheels".
-# See printf(3) for more information.
-# If you want to change the order, use %2$s to get the second arg.
-# I have exteded printf where so that you can use %() as an optional format string. The %s inside an %() is only printed if there is any data for the %s. So for an example if you use "np: %s-%s (%s)" as the "lastfm_sprintf" and the albumname is missing you'll get "np: joplex-arcade (short mix) ()" since Last.fm doesn't know any album title for this artist. If we use "np: %s-%s%( (%s))" we will simple get "np: joplex-arcade (short mix)" since the last %s is not defined and therefor not printed. Nifty, huh?
-# If "lastfm_sprintf_tab_complete" is not defined, "lastfm_sprintf" will be used instead.
-Irssi::settings_add_str("lastfm", "lastfm_sprintf", 'np: %s-%s');
-Irssi::settings_add_str("lastfm", "lastfm_sprintf_tab_complete", '');
+# The output that you want to use.
+# The substitution variables are:
+#   %artist = Self explanatory
+#   %album  = Self explanatory
+#   %name   = Name of song*
+#   %date   = Time when playing of track started, configurable via "lastfm_strftime"
+#   %url    = URL to song on Last.fm
+# If "lastfm_output_tab_complete" is not defined, "lastfm_output" will be used instead.
+#  *) Name is used instead of, the more logical IMO, track since that is what Last.fm reports in their .xml file that we parse.
+Irssi::settings_add_str("lastfm", "lastfm_output", 'np: %artist-%name');
+Irssi::settings_add_str("lastfm", "lastfm_output_tab_complete", '');
 
 # The strftime(3) syntax used when displaying at what time a song was submitted.
 Irssi::settings_add_str("lastfm", "lastfm_strftime", 'scrobbled at: %R %Z');
@@ -48,6 +46,10 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 # To use the "lastfm_debug" setting you'll need to install the Data::Dumper CPAN plugin.
 
 # Changelog#{{{
+
+# 4.4 -- 
+# * Changed so that all the tab-commands use % instead of $ so that it's consistent through out the script.
+# * Ripped out my sprintf crap and made it more sane. You should use %artist, %album, etc in your nowplaying-setting now. Since sprintf is nolonger used I renamed that setting too.
 
 # 4.3 -- Mon 21 Jul 2008 08:46:36 CEST
 # * Seem like I misunderstood the protocol. The date/time is only sent when we have scrobbled the track, not when we started to listen to it.
@@ -149,11 +151,24 @@ if (DEBUG) {
 
 # TODO
 # * Get rid of LWP::Simple dependency.
+# * When np fails, check http://status.last.fm/ if they really are down.
+# 	If parsing or getting fails, head status page and check if etag is the same.
+# * Fix so that %( %album) works again, help please!
+# 1207.29 )( tAnk__ [tank@the.matrix.has-you.net]
+# 1207.29 )(  ircname  : tAnk inside the Matrix
+# 1207.29 )(  server   : irc.efnet.ru (the peace maker - www.verdure.ru)
+# 1207.29 )(           : 83.97.98.215 :actually using host
+# 1207.29 )(  idle     : 0 days 0 hours 14 mins 49 secs (signon: Fri Aug 29 
+#                        12:02:15 2008)
+# * Redo the time since we scrobbled check to say: "This was scrobbled X minutes ago, so this might not be accurate." But the date is when the track started to be played not when we finished it..
+# date fungerar definitivt inte
+# Fix so that %artist<TAB> works.
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
 our ($pid, $input_tag) = undef;
 my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
+my $fields = "(artist|name|album|date|url)";
 
 sub print_raw {
 	my $data = join('', @_);
@@ -172,7 +187,7 @@ sub lastfm {
 		my $user = $user_shifted || Irssi::settings_get_str("lastfm_user");
 		my $is_tabbed = shift;
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
-		my $sprintf = (Irssi::settings_get_str("lastfm_sprintf_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_sprintf_tab_complete") : Irssi::settings_get_str("lastfm_sprintf");
+		my $nowplaying = (Irssi::settings_get_str("lastfm_output_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_output_tab_complete") : Irssi::settings_get_str("lastfm_output");
 
 		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
 		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
@@ -184,32 +199,36 @@ sub lastfm {
 		# TODO This doesn't work because LWP::Simple::get doesn't return any content unless it gets an 200
 		die $1 if ($content =~ m!<lfm status="failed">.*<error .*?>([^<]+)!s);
 
-		if ($content =~ m!(?:nowplaying="true").*<artist.*?>([^<]+).*<name.*?>([^<]+).*<album.*?>([^<]*).*(?:<date uts="([^"]*))?.*!s) {
-			($artist, $track, $album, $time) = ($1, $2, $3, $4);
+		my $regex = qr!<$fields.*?(?:uts="(.*?)">.*?|>(.*?))</\1>!;
+		my @data = grep(/$regex/, split('\n', $content));
+		my ($tag, $value, %data); 
+		foreach my $data (@data) {
+			($tag, $value) = ($1, (defined($2) ? $2 : $3)) if ($data =~ /$regex/);
+			$data{$tag} = $value;
 		}
-		print_raw Dumper $artist, $track, $album, $time if DEBUG;
+		print_raw Dumper %data if DEBUG;
 
-		if (!defined $artist) {
+		if (!defined $data{'artist'}) {
 			die($errormsg_pre." yet".$errormsg_post);
 		}
 
-		if (defined $time) {
-			if ($time < strftime('%s', localtime()) - 60 * 30) {
+		if (defined $data{'date'}) {
+			if ($data{'date'} < strftime('%s', gmtime()) - 60 * 30) {
 				die($errormsg_pre." within the last 30 minutes".$errormsg_post);
 			}
-			$strftime = strftime($strftime, localtime(scalar($4)));
+			$data{'date'} = strftime($strftime, localtime(scalar($data{'date'})));
 		}
 		else {
-			undef $strftime;
+			undef $data{'date'};
 		}
-		$content = sprintfng($sprintf, $artist, $track, $album, $strftime);
-		$content =~ s/&amp;/&/g;
-		$content =~ s/&gt;/>/g;
-		$content =~ s/&lt;/</g;
-		$content =~ s/&quot;/"/g;
-		Encode::from_to($content, "utf-8", Irssi::settings_get_str("term_charset"));
-		$content = "$user_shifted $content" if $user_shifted;
-		return $content;
+		$nowplaying =~ s/%$fields/$data{$1}/ge;
+		$nowplaying =~ s/&amp;/&/g;
+		$nowplaying =~ s/&gt;/>/g;
+		$nowplaying =~ s/&lt;/</g;
+		$nowplaying =~ s/&quot;/"/g;
+		Encode::from_to($nowplaying, "utf-8", Irssi::settings_get_str("term_charset"));
+		$nowplaying = "$user_shifted $nowplaying" if $user_shifted;
+		return $nowplaying;
 }
 
 sub lastfm_forky {
@@ -276,50 +295,12 @@ sub input_read {
 	$input_tag = $pid = undef;
 }
 
-sub sprintfng {
-	my ($pattern, @args) = @_;
-	my $argc = scalar(@args);
-	my $format_chars = () = $pattern =~ /%\w/g;
-
-	my $count = ($format_chars > $argc) ? $argc : $format_chars;
-
-	print "argc=$argc, format_chars=$format_chars, count=$count" if DEBUG;
-	print_raw "before checkifexists: $pattern" if DEBUG;
-	$pattern =~ s/(%\(.*?\)\)*|%\w)/checkifexists($1, $count, $format_chars, @args)/eg;
-	print_raw "after checkifexists: $pattern" if DEBUG;
-	print_raw Dumper "pattern: $pattern", @args if DEBUG;
-	sprintf($pattern, @args);
-}
-
-{
-	my $i=0;
-	sub checkifexists {
-		$i++;
-		my ($condition, $count, $count_max, @args) = @_;
-
-		print "$i vs count: $count max:$count_max" if DEBUG;
-		$condition =~ s/%(\w)/%$i\$s/;
-		print_raw "pattern: $condition content: $args[$i-1]" if DEBUG;
-		if ($i > $count || $args[$i-1] eq "") {
-			print "undef\n" if DEBUG;
-			$condition = undef;
-		}
-		if ($i == $count_max) {
-			print "resetting \$i" if DEBUG;
-			$i=0;
-		}
-		$condition =~ s/%\((.*)\)/$1/g;
-		print_raw "returning: $condition" if DEBUG;
-		return $condition;
-	}
-}
-
 Irssi::command_bind('np', 'cmd_lastfm', 'lastfm');
 
 Irssi::signal_add_last 'complete word' => sub {
 	my ($complist, $window, $word, $linestart, $want_space) = @_;
 	my $is_tabbed = 1;
-	if ($word =~ /\$(lastfm|lfm)/) {
+	if ($word =~ /%(lastfm|lfm)/) {
 		my $user = Irssi::settings_get_str("lastfm_user");
 		if (!defined $user) {
 			Irssi::active_win()->print("You must /set lastfm_user to a username on Last.fm");
@@ -327,7 +308,7 @@ Irssi::signal_add_last 'complete word' => sub {
 		}
 		push @$complist, "http://last.fm/user/$user/";
 	}
-	elsif ($word =~ /\$(?:nowplaying|np)\(?(\w+)?\)?/) {
+	elsif ($word =~ /%(?:nowplaying|np)\(?(\w+)?\)?/) {
 		my $nowplaying;
 		eval {
 			$nowplaying = lastfm($1, $is_tabbed);
