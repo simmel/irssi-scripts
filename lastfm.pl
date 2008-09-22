@@ -303,7 +303,6 @@ Irssi::signal_add_last 'complete word' => sub {
 	my ($complist, $window, $word, $linestart, $want_space) = @_;
   my $tab_fields = $fields;
   $tab_fields =~ s/\(/(nowplaying|np|/;
-  print Dumper $tab_fields;
 	my $is_tabbed = 1;
 	if ($word =~ /%(lastfm|lfm)/) {
 		my $user = Irssi::settings_get_str("lastfm_user");
