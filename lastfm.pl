@@ -320,6 +320,7 @@ Irssi::signal_add_last 'complete word' => sub {
 		};
 		if ($@) {
 			Irssi::active_win()->print($1) if ($@ =~ /^(.+) at \(eval \d+\) line \d+/);
+			return 0;
 		}
 		push @$complist, "$nowplaying" if $nowplaying;
 	}
