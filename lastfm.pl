@@ -50,6 +50,7 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 # 4.4 -- 
 # * Changed so that all the tab-commands use % instead of $ so that it's consistent through out the script.
 # * Ripped out my sprintf crap and made it more sane. You should use %artist, %album, etc in your nowplaying-setting now. Since sprintf is nolonger used I renamed that setting too.
+# * Made everything that you can set in "lastfm_output" tabable so now you can do %artist<TAB>.
 
 # 4.3 -- Mon 21 Jul 2008 08:46:36 CEST
 # * Seem like I misunderstood the protocol. The date/time is only sent when we have scrobbled the track, not when we started to listen to it.
@@ -161,8 +162,8 @@ if (DEBUG) {
 # 1207.29 )(  idle     : 0 days 0 hours 14 mins 49 secs (signon: Fri Aug 29 
 #                        12:02:15 2008)
 # * Redo the time since we scrobbled check to say: "This was scrobbled X minutes ago, so this might not be accurate." But the date is when the track started to be played not when we finished it..
-# date fungerar definitivt inte
-# Fix so that %artist<TAB> works.
+# date in sub lastfm is definitely not working.
+# Cache output. This requires HEAD and Etag-support though.
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
@@ -187,7 +188,7 @@ sub lastfm {
 		my $user = $user_shifted || Irssi::settings_get_str("lastfm_user");
 		my $is_tabbed = shift;
 		my $strftime = Irssi::settings_get_str("lastfm_strftime");
-		my $nowplaying = (Irssi::settings_get_str("lastfm_output_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_output_tab_complete") : Irssi::settings_get_str("lastfm_output");
+		my $nowplaying = shift || ((Irssi::settings_get_str("lastfm_output_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_output_tab_complete") : Irssi::settings_get_str("lastfm_output"));
 
 		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
 		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
@@ -206,6 +207,7 @@ sub lastfm {
 			($tag, $value) = ($1, (defined($2) ? $2 : $3)) if ($data =~ /$regex/);
 			$data{$tag} = $value;
 		}
+		print_raw "Using output pattern: $nowplaying" if DEBUG;
 		print_raw Dumper %data if DEBUG;
 
 		if (!defined $data{'artist'}) {
@@ -299,6 +301,9 @@ Irssi::command_bind('np', 'cmd_lastfm', 'lastfm');
 
 Irssi::signal_add_last 'complete word' => sub {
 	my ($complist, $window, $word, $linestart, $want_space) = @_;
+  my $tab_fields = $fields;
+  $tab_fields =~ s/\(/(nowplaying|np|/;
+  print Dumper $tab_fields;
 	my $is_tabbed = 1;
 	if ($word =~ /%(lastfm|lfm)/) {
 		my $user = Irssi::settings_get_str("lastfm_user");
@@ -308,10 +313,11 @@ Irssi::signal_add_last 'complete word' => sub {
 		}
 		push @$complist, "http://last.fm/user/$user/";
 	}
-	elsif ($word =~ /%(?:nowplaying|np)\(?(\w+)?\)?/) {
-		my $nowplaying;
+	elsif ($word =~ /(\%(?:$tab_fields))\(?(\w+)?\)?/) {
+		my ($nowplaying, $user) = $1, $2;
+    undef $nowplaying if ($nowplaying =~ /nowplaying|np/);
 		eval {
-			$nowplaying = lastfm($1, $is_tabbed);
+			$nowplaying = lastfm($user, $is_tabbed, $nowplaying);
 		};
 		if ($@) {
 			Irssi::active_win()->print($1) if ($@ =~ /^(.+) at \(eval \d+\) line \d+/);
