@@ -33,6 +33,18 @@ Irssi::settings_add_str("lastfm", "lastfm_user", "");
 #   %date   = Time when playing of track started, configurable via "lastfm_strftime"
 #   %url    = URL to song on Last.fm
 # If "lastfm_output_tab_complete" is not defined, "lastfm_output" will be used instead.
+# Something bothered me for a long time and when something really starts to itch
+# I tend to want to do something about it. I'm /np:ing away displaying all sorts
+# of tracks to my friends until I get to a track which has no album information
+# on Last.fm and the output becomes really ugly "np: Kraftwerk-Aerodynamik 
+# (Alex Gopher/Etienne de Crecy dynamik mix) ()". What's with that last ()!? Oh,
+# right we are using "np: %artist-%name (%album)" as "lastfm_output". Wouldn't 
+# it be really cool if lastfm.pl knew when certain information from Last.fm
+# didn't exist and didn't display it? So thought I, so that's why I created a 
+# conditional. It works that you have to put your tag (%album e.g.) within %()
+# e.g. "np: %artist-%name%( (%album))" and everything between %( and ) only gets
+# displayed if the tag inside actually exists! Cool, huh!?
+
 #  *) Name is used instead of, the more logical IMO, track since that is what Last.fm reports in their .xml file that we parse.
 Irssi::settings_add_str("lastfm", "lastfm_output", 'np: %artist-%name');
 Irssi::settings_add_str("lastfm", "lastfm_output_tab_complete", '');
@@ -51,6 +63,7 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 # * Changed so that all the tab-commands use % instead of $ so that it's consistent through out the script.
 # * Ripped out my sprintf crap and made it more sane. You should use %artist, %album, etc in your nowplaying-setting now. Since sprintf is nolonger used I renamed that setting too.
 # * Made everything that you can set in "lastfm_output" tabable so now you can do %artist<TAB>.
+# %() in "lastfm_output" really works. It really didn't before.
 
 # 4.3 -- Mon 21 Jul 2008 08:46:36 CEST
 # * Seem like I misunderstood the protocol. The date/time is only sent when we have scrobbled the track, not when we started to listen to it.
@@ -154,7 +167,6 @@ if (DEBUG) {
 # * Get rid of LWP::Simple dependency.
 # * When np fails, check http://status.last.fm/ if they really are down.
 # 	If parsing or getting fails, head status page and check if etag is the same.
-# * Fix so that %( %album) works again, help please!
 # 1207.29 )( tAnk__ [tank@the.matrix.has-you.net]
 # 1207.29 )(  ircname  : tAnk inside the Matrix
 # 1207.29 )(  server   : irc.efnet.ru (the peace maker - www.verdure.ru)
@@ -207,7 +219,6 @@ sub lastfm {
 			($tag, $value) = ($1, (defined($2) ? $2 : $3)) if ($data =~ /$regex/);
 			$data{$tag} = $value;
 		}
-		print_raw "Using output pattern: $nowplaying" if DEBUG;
 		print_raw Dumper %data if DEBUG;
 
 		if (!defined $data{'artist'}) {
@@ -223,6 +234,9 @@ sub lastfm {
 		else {
 			undef $data{'date'};
 		}
+		print_raw "Output pattern before: $nowplaying" if DEBUG;
+		$nowplaying =~ s/(%\((.*?%$fields.?)\)(?!%\()?)/(($data{$3} ne "") ? $2 : "")/ge;
+		print_raw "Output pattern after: $nowplaying" if DEBUG;
 		$nowplaying =~ s/%$fields/$data{$1}/ge;
 		$nowplaying =~ s/&amp;/&/g;
 		$nowplaying =~ s/&gt;/>/g;
