@@ -1,8 +1,8 @@
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.3";
+$VERSION = "4.4";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
-        contact     => 'simmel@(freenode|quakenet|efnet)',
+        contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
         date        => "20080721",
         description => 'An now-playing-script which uses Last.fm',
