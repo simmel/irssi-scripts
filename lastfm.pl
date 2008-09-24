@@ -167,15 +167,10 @@ if (DEBUG) {
 # * Get rid of LWP::Simple dependency.
 # * When np fails, check http://status.last.fm/ if they really are down.
 # 	If parsing or getting fails, head status page and check if etag is the same.
-# 1207.29 )( tAnk__ [tank@the.matrix.has-you.net]
-# 1207.29 )(  ircname  : tAnk inside the Matrix
-# 1207.29 )(  server   : irc.efnet.ru (the peace maker - www.verdure.ru)
-# 1207.29 )(           : 83.97.98.215 :actually using host
-# 1207.29 )(  idle     : 0 days 0 hours 14 mins 49 secs (signon: Fri Aug 29 
-#                        12:02:15 2008)
 # * Redo the time since we scrobbled check to say: "This was scrobbled X minutes ago, so this might not be accurate." But the date is when the track started to be played not when we finished it..
 # date in sub lastfm is definitely not working.
 # Cache output. This requires HEAD and Etag-support though.
+# Sanitize the help via tAnk@efnet
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
@@ -184,9 +179,8 @@ my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
 my $fields = "(artist|name|album|date|url)";
 
 sub print_raw {
-	my $data = join('', @_);
-	$data =~ s/%/%%/g;
-	print $data;
+	s/%/%%/g for @_;
+	print @_;
 }
 
 sub cmd_lastfm {
