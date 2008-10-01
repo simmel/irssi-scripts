@@ -1,5 +1,5 @@
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.4";
+$VERSION = "4.5";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
@@ -59,7 +59,11 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
 # Changelog#{{{
 
-# 4.4 -- 
+# 4.5 -- Wed  1 Oct 2008 20:03:47 CEST
+# * Removed a debug output
+# * Fixed some datacorruption, references in Perl is hard! = (
+
+# 4.4 -- Wed  1 Oct 2008 16:34:34 CEST
 # * Changed so that all the tab-commands use % instead of $ so that it's consistent through out the script.
 # * Ripped out my sprintf crap and made it more sane. You should use %artist, %album, etc in your nowplaying-setting now. Since sprintf is nolonger used I renamed that setting too.
 # * Made everything that you can set in "lastfm_output" tabable so now you can do %artist<TAB>.
@@ -220,16 +224,15 @@ sub lastfm {
 			($tag, $value) = ($1, (defined($2) ? $2 : $3)) if ($data =~ /$regex/);
 			$data{$tag} = $value;
 		}
-		print_raw \%data if DEBUG;
+		print_raw {%data} if DEBUG;
 
 		if (!defined $data{'artist'}) {
 			die($errormsg_pre." yet".$errormsg_post);
 		}
 
 		if (defined $data{'date'}) {
-			print_raw "$data{date} < ".(strftime('%s', localtime()) - 60 * 30);
 			if (!grep(m!<track nowplaying="true">!, split('\n', $content))) {
-				print "We are actually not playing this track right now according to Last.fm, our scrobbler is probably using the old protocol." if DEBUG;
+				print "We are actually not playing this track right now according to Last.fm. Is your scrobbler using the old protocol?" if DEBUG;
 				if ($data{'date'} < strftime('%s', localtime()) - 60 * 27) {
 					die($errormsg_pre." within the last 30 minutes".$errormsg_post);
 				}
