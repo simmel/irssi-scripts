@@ -5,7 +5,7 @@ $VERSION = "4.4";
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
         date        => "20080721",
-        description => 'An now-playing-script which uses Last.fm',
+        description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
 );
