@@ -55,7 +55,7 @@ Irssi::settings_add_str("lastfm", "lastfm_strftime", 'scrobbled at: %R %Z');
 # If we should use /me instead of /say
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
-# To use the "lastfm_debug" setting you'll need to install the Data::Dumper CPAN plugin.
+# The "lastfm_debug" setting will use Data::Dumper which is in core since 1998, but lastfm.pl will just silently ignore if you don't have it installed. Debug output will just be briefer.
 
 # Changelog#{{{
 
@@ -64,6 +64,8 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 # * Ripped out my sprintf crap and made it more sane. You should use %artist, %album, etc in your nowplaying-setting now. Since sprintf is nolonger used I renamed that setting too.
 # * Made everything that you can set in "lastfm_output" tabable so now you can do %artist<TAB>.
 # %() in "lastfm_output" really works. It really didn't before.
+# * Fixed some issues with the date probably not working, but should now.
+# * Made the script check if Last.fm's scrobbler server is alive and kicking before we blame them.
 
 # 4.3 -- Mon 21 Jul 2008 08:46:36 CEST
 # * Seem like I misunderstood the protocol. The date/time is only sent when we have scrobbled the track, not when we started to listen to it.
@@ -142,12 +144,15 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 # * Started using XML instead because we get more info from it, like album (but it's often wrong).
 
 # 1.0 -- Thu Apr 12 16:57:26 CEST 2007
-# * Got fedup with no good Last.fm-based now playing scripts around.#}}}
+# * Got fedup with no good Last.fm-based now playing scripts around.#
+
+# THANKS
+# Random individuals on #perl@freenode, could namedrop icke, 
+# }}}
 
 # Move along now, there's nothing here to see.
 
 sub DEBUG {
-	# Enable debug output.
 	Irssi::settings_add_bool("lastfm", "lastfm_debug", 0);
 	Irssi::settings_get_bool("lastfm_debug");
 };
@@ -159,17 +164,14 @@ use Irssi;
 use Encode;
 use POSIX qw(strftime);
 if (DEBUG) {
-	use Data::Dumper;
+	eval "use Data::Dumper";
 	use warnings;
 }
 
 # TODO
 # * Get rid of LWP::Simple dependency.
-# * When np fails, check http://status.last.fm/ if they really are down.
-# 	If parsing or getting fails, head status page and check if etag is the same.
-# * Redo the time since we scrobbled check to say: "This was scrobbled X minutes ago, so this might not be accurate." But the date is when the track started to be played not when we finished it..
-# date in sub lastfm is definitely not working.
-# Cache output. This requires HEAD and Etag-support though.
+# * Make check_lastfm_status use HEAD and check the Etag.
+# * Cache output. This requires HEAD and Etag-support though.
 # Sanitize the help via tAnk@efnet
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
@@ -179,8 +181,13 @@ my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
 my $fields = "(artist|name|album|date|url)";
 
 sub print_raw {
-	s/%/%%/g for @_;
-	print @_;
+	if (ref($_[0]) eq "HASH") {
+		s/%/%%/g for values %{$_[0]};
+	}
+	else {
+		s/%/%%/g for @_;
+	}
+	print defined &Dumper ? Dumper(@_) : @_;
 }
 
 sub cmd_lastfm {
@@ -213,15 +220,19 @@ sub lastfm {
 			($tag, $value) = ($1, (defined($2) ? $2 : $3)) if ($data =~ /$regex/);
 			$data{$tag} = $value;
 		}
-		print_raw Dumper %data if DEBUG;
+		print_raw \%data if DEBUG;
 
 		if (!defined $data{'artist'}) {
 			die($errormsg_pre." yet".$errormsg_post);
 		}
 
 		if (defined $data{'date'}) {
-			if ($data{'date'} < strftime('%s', gmtime()) - 60 * 30) {
-				die($errormsg_pre." within the last 30 minutes".$errormsg_post);
+			print_raw "$data{date} < ".(strftime('%s', localtime()) - 60 * 30);
+			if (!grep(m!<track nowplaying="true">!, split('\n', $content))) {
+				print "We are actually not playing this track right now according to Last.fm, our scrobbler is probably using the old protocol." if DEBUG;
+				if ($data{'date'} < strftime('%s', localtime()) - 60 * 27) {
+					die($errormsg_pre." within the last 30 minutes".$errormsg_post);
+				}
 			}
 			$data{'date'} = strftime($strftime, localtime(scalar($data{'date'})));
 		}
@@ -284,7 +295,9 @@ sub input_read {
 	my $content = join('', @content);
 
 	if ($content =~ /^(.+) at \(eval \d+\) line \d+/) {
-		Irssi::active_win()->print($1);
+		my $message = $1;
+		$message = $_ if ($_ = check_lastfm_status($message));
+		Irssi::active_win()->print($message);
 	}
 	else {
 		if (defined $witem->{type} && $witem->{type} =~ /^QUERY|CHANNEL$/) {
@@ -303,6 +316,21 @@ sub input_read {
 	Irssi::input_remove($input_tag);
 	close $reader;
 	$input_tag = $pid = undef;
+}
+
+sub check_lastfm_status {
+	my ($message) = @_;
+	if ($message =~ /^$errormsg_pre/) {
+		my $status = get("http://status.last.fm/");
+		if (grep(m!<tr><td>Submissions</td><td><span class="status_ok">!, split('\n', $status)))
+		{
+			my $user = Irssi::settings_get_str("lastfm_user");
+			return "I can't find any new scrobblings and Last.fm is not reporting any problem with the submission server, please check if your scrobbler is working. Are tracks turning up on http://last.fm/user/$user ?";
+		}
+		else {
+			return 0;
+		}
+	}
 }
 
 Irssi::command_bind('np', 'cmd_lastfm', 'lastfm');
@@ -327,7 +355,11 @@ Irssi::signal_add_last 'complete word' => sub {
 			$nowplaying = lastfm($user, $is_tabbed, $nowplaying);
 		};
 		if ($@) {
-			Irssi::active_win()->print($1) if ($@ =~ /^(.+) at \(eval \d+\) line \d+/);
+			if ($@ =~ /^(.+) at \(eval \d+\) line \d+/) {
+				my $message = $1;
+				$message = $_ if ($_ = check_lastfm_status($message));
+				Irssi::active_win()->print($message);
+			}
 			return 0;
 		}
 		push @$complist, "$nowplaying" if $nowplaying;
