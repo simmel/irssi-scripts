@@ -12,9 +12,12 @@ $VERSION = "4.5";
 # USAGE
 # For details on how to use each setting, scroll down to the SETTINGS section.
 
+# QUICK START
+# * /set lastfm_user to the username that you are using on Last.fm
+# * Use /np to display what song you are playing.
 # * Show with /np or %np<TAB> what song "lastfm_user" last scrobbled to Last.fm via /say. If "lastfm_use_action" is set, it uses /me.
 # * To see what another user on Last.fm is playing is also possible via /np <username> or %np(<username>).
-# The now-playing message is configurable via via "lastfm_output" (and lastfm_output_tab_complete when using %np). "lastfm_strftime" can be used to configure the display of date and time when the song was scrobbled.
+# The now-playing message is configurable via via "lastfm_output" (and lastfm_output_tab_complete when using %np, if not set it will use lastfm_output by default.). "lastfm_strftime" can be used to configure the display of date and time when the song was scrobbled.
 
 # Right now lastfm.pl depends on LWP::Simple, but hopefully this will change in the future. The package in your package system is probably called something with libwww and perl and/or p5 in it.
 
