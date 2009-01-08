@@ -1,5 +1,5 @@
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.5";
+$VERSION = "4.6";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
@@ -61,6 +61,10 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 # The "lastfm_debug" setting will use Data::Dumper which is in core since 1998, but lastfm.pl will just silently ignore if you don't have it installed. Debug output will just be briefer.
 
 # Changelog#{{{
+
+# 4.6 -- Thu  8 Jan 2009 17:50:56 CET
+# * Added an quick start which should help get going faster
+# * Fixed an issue where %np(lastfmusername) would not work.
 
 # 4.5 -- Wed  1 Oct 2008 20:03:47 CEST
 # * Removed a debug output
@@ -354,8 +358,8 @@ Irssi::signal_add_last 'complete word' => sub {
 		}
 		push @$complist, "http://last.fm/user/$user/";
 	}
-	elsif ($word =~ /(\%(?:$tab_fields))\(?(\w+)?\)?/) {
-		my ($nowplaying, $user) = $1, $2;
+	elsif ($word =~ /\%(?:$tab_fields)\(?(\w+)?\)?/) {
+		my ($nowplaying, $user) = ($1, $2);
     undef $nowplaying if ($nowplaying =~ /nowplaying|np/);
 		eval {
 			$nowplaying = lastfm($user, $is_tabbed, $nowplaying);
