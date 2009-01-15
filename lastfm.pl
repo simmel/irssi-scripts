@@ -330,12 +330,12 @@ sub input_read {
 }
 
 sub check_lastfm_status {
-	my ($message) = @_;
+	my ($message, $user) = @_;
+	my $user = ($user) ? $user : Irssi::settings_get_str("lastfm_user");
 	if ($message =~ /^$errormsg_pre/) {
 		my $status = get("http://status.last.fm/");
 		if (grep(m!<tr><td>Submissions</td><td><span class="status_ok">!, split('\n', $status)))
 		{
-			my $user = Irssi::settings_get_str("lastfm_user");
 			return "I can't find any new scrobblings and Last.fm is not reporting any problem with the submission server, please check if your scrobbler is working. Are tracks turning up on http://last.fm/user/$user ?";
 		}
 		else {
@@ -368,7 +368,7 @@ Irssi::signal_add_last 'complete word' => sub {
 		if ($@) {
 			if ($@ =~ /^(.+) at \(eval \d+\) line \d+/) {
 				my $message = $1;
-				$message = $_ if ($_ = check_lastfm_status($message));
+				$message = $_ if ($_ = check_lastfm_status($message, $user));
 				Irssi::active_win()->print($message);
 			}
 			return 0;
