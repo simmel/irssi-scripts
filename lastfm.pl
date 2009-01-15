@@ -184,6 +184,7 @@ if (DEBUG) {
 # * Make check_lastfm_status use HEAD and check the Etag.
 # * Cache output. This requires HEAD and Etag-support though.
 # Sanitize the help via tAnk@efnet
+# FIX print_raw once and for all so that it doesnt change the actual values but just copies them, change and then print. References == PITA
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
@@ -358,8 +359,8 @@ Irssi::signal_add_last 'complete word' => sub {
 		}
 		push @$complist, "http://last.fm/user/$user/";
 	}
-	elsif ($word =~ /\%(?:$tab_fields)\(?(\w+)?\)?/) {
-		my ($nowplaying, $user) = ($1, $2);
+	elsif ($word =~ /(\%(?:$tab_fields))\(?(\w+)?\)?/) {
+		my ($nowplaying, $user) = ($1, $3);
     undef $nowplaying if ($nowplaying =~ /nowplaying|np/);
 		eval {
 			$nowplaying = lastfm($user, $is_tabbed, $nowplaying);
