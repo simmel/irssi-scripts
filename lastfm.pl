@@ -65,6 +65,7 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 # 4.6 -- Thu  8 Jan 2009 17:50:56 CET
 # * Added an quick start which should help get going faster
 # * Fixed an issue where %np(lastfmusername) would not work.
+# * Fixed error mesages for %np(lastfmusername)
 
 # 4.5 -- Wed  1 Oct 2008 20:03:47 CEST
 # * Removed a debug output
