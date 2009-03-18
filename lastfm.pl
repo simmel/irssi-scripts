@@ -35,6 +35,7 @@ Irssi::settings_add_str("lastfm", "lastfm_user", "");
 #   %name   = Name of song*
 #   %date   = Time when playing of track started, configurable via "lastfm_strftime"
 #   %url    = URL to song on Last.fm
+#   %player = Player we are using to submit to Last.fm with See setting "lastfm_get_player" below
 # If "lastfm_output_tab_complete" is not defined, "lastfm_output" will be used instead.
 # Something bothered me for a long time and when something really starts to itch
 # I tend to want to do something about it. I'm /np:ing away displaying all sorts
@@ -58,14 +59,21 @@ Irssi::settings_add_str("lastfm", "lastfm_strftime", 'scrobbled at: %R %Z');
 # If we should use /me instead of /say
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
+# If we should make the subtitution variable %player available which is very slow to fetch but nice to have.
+Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
+
 # The "lastfm_debug" setting will use Data::Dumper which is in core since 1998, but lastfm.pl will just silently ignore if you don't have it installed. Debug output will just be briefer.
 
 # Changelog#{{{
 
-# 4.6 -- Thu  8 Jan 2009 17:50:56 CET
+# 4.6 -- Wed Mar 18 19:45:11 CET 2009
+# * Fixed an changed behavour in irssi-trunk with the error handling (which I should replace anyway!).
+# * Added %player substitute variable that shows what application you are using to scrobble with. This is very slow, so I made it an option, "lastfm_get_player".
+# * Fixed print_raw once and for all (famous last words..) so now debug output looks really neat.
 # * Added an quick start which should help get going faster
 # * Fixed an issue where %np(lastfmusername) would not work.
 # * Fixed error mesages for %np(lastfmusername)
+# * Fixed an problem with irssi-svn where die's message have changed. Thanks tto jnpplf  for reporting this.
 
 # 4.5 -- Wed  1 Oct 2008 20:03:47 CEST
 # * Removed a debug output
@@ -181,24 +189,40 @@ if (DEBUG) {
 }
 
 # TODO
+# * Lower memory usage, lastfm.pl almost takes 1MB or RAM!
 # * Get rid of LWP::Simple dependency.
 # * Make check_lastfm_status use HEAD and check the Etag.
 # * Cache output. This requires HEAD and Etag-support though.
-# Sanitize the help via tAnk@efnet
-# FIX print_raw once and for all so that it doesnt change the actual values but just copies them, change and then print. References == PITA
+# * 1415.14 Aerdan, warn "lawl" and return; 1415.27 ~mauke, return "error!"
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
 our ($pid, $input_tag) = undef;
 my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
-my $fields = "(artist|name|album|date|url)";
+my $fields = "(artist|name|album|date|url|player)";
 
 sub print_raw {
-	if (ref($_[0]) eq "HASH") {
-		s/%/%%/g for values %{$_[0]};
-	}
-	else {
-		s/%/%%/g for @_;
+	foreach (@_) {
+		if (ref($_) eq "SCALAR") {
+			my $scalar = $$_;
+			s/%/%%/g for $scalar;
+			$_ = $scalar;
+		}
+		elsif (ref($_) eq "ARRAY") {
+			my @array = @$_;
+			s/%/%%/g for @array;
+			$_ = \@array;
+		}
+		elsif (ref($_) eq "HASH") {
+			my %hash = %$_;
+			s/%/%%/g for %hash;
+			$_ = \%hash;
+		}
+		else {
+			my $scalar = $_;
+			s/%/%%/g for $scalar;
+			$_ = $scalar;
+		}
 	}
 	print defined &Dumper ? Dumper(@_) : @_;
 }
@@ -233,7 +257,6 @@ sub lastfm {
 			($tag, $value) = ($1, (defined($2) ? $2 : $3)) if ($data =~ /$regex/);
 			$data{$tag} = $value;
 		}
-		print_raw {%data} if DEBUG;
 
 		if (!defined $data{'artist'}) {
 			die($errormsg_pre." yet".$errormsg_post);
@@ -251,8 +274,18 @@ sub lastfm {
 		else {
 			undef $data{'date'};
 		}
+		if (Irssi::settings_get_bool("lastfm_get_player")) {
+			$url = "http://www.last.fm/user/$user";
+			$content = get($url);
+			if ($content =~ m!</span>Listening now using (.*?)(?: - Tuned.*?)?</div>!) {
+				$_ = $1;
+				s/<[^>]*>//mgs;
+				$data{'player'} = $_;
+			}
+		}
+		print_raw {%data} if DEBUG;
 		print_raw "Output pattern before: $nowplaying" if DEBUG;
-		$nowplaying =~ s/(%\((.*?%$fields.?)\)(?!%\()?)/(($data{$3} ne "") ? $2 : "")/ge;
+		$nowplaying =~ s/(%\((.*?%(\w+).?)\))/($data{$3} ? $2 : "")/ge;
 		print_raw "Output pattern after: $nowplaying" if DEBUG;
 		$nowplaying =~ s/%$fields/$data{$1}/ge;
 		$nowplaying =~ s/&amp;/&/g;
