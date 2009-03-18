@@ -306,7 +306,7 @@ sub input_read {
 	my @content = <$reader>;
 	my $content = join('', @content);
 
-	if ($content =~ /^(.+) at \(eval \d+\) line \d+/) {
+	if ($content =~ /^(.+) at (.*?\/lastfm.pl|\(eval \d+\)) line \d+\.$/) {
 		my $message = $1;
 		$message = $_ if ($_ = check_lastfm_status($message));
 		Irssi::active_win()->print($message);
@@ -367,7 +367,7 @@ Irssi::signal_add_last 'complete word' => sub {
 			$nowplaying = lastfm($user, $is_tabbed, $nowplaying);
 		};
 		if ($@) {
-			if ($@ =~ /^(.+) at \(eval \d+\) line \d+/) {
+			if ($@ =~ /^(.+) (.*?\/lastfm.pl|\(eval \d+\)) line \d+\.$/) {
 				my $message = $1;
 				$message = $_ if ($_ = check_lastfm_status($message, $user));
 				Irssi::active_win()->print($message);
