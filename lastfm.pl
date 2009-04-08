@@ -1,10 +1,10 @@
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.6";
+$VERSION = "4.7";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20090318",
+        date        => "20090408",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -13,13 +13,13 @@ $VERSION = "4.6";
 # For details on how to use each setting, scroll down to the SETTINGS section.
 
 # QUICK START
+# * First of all, you need the libwww/LWP package installed. The package in
+# your package system is probably called something with libwww and perl and/or
+# p5 in it.
 # * /set lastfm_user to the username that you are using on Last.fm
-# * Use /np to display what song you are playing.
 # * Show with /np or %np<TAB> what song "lastfm_user" last scrobbled to Last.fm via /say. If "lastfm_use_action" is set, it uses /me.
 # * To see what another user on Last.fm is playing is also possible via /np <username> or %np(<username>).
 # The now-playing message is configurable via via "lastfm_output" (and lastfm_output_tab_complete when using %np, if not set it will use lastfm_output by default.). "lastfm_strftime" can be used to configure the display of date and time when the song was scrobbled.
-
-# Right now lastfm.pl depends on LWP::Simple, but hopefully this will change in the future. The package in your package system is probably called something with libwww and perl and/or p5 in it.
 
 # SETTINGS
 # NOTE: Do not set these options here, use /set <option> <value> in irssi!
@@ -65,6 +65,13 @@ Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 # The "lastfm_debug" setting will use Data::Dumper which is in core since 1998, but lastfm.pl will just silently ignore if you don't have it installed. Debug output will just be briefer.
 
 # Changelog#{{{
+
+# 4.7 -- Tue Apr  8 13:37:11 CEST 2009
+# * Start using LWP::UserAgent instead of LWP::Simple and got rid of the idea to
+# start using my own HTTP-lib (it was finished, but..). I'm getting old ; P
+# * Made so that everything is cached and checks if the Last-Modified date when 
+# getting information from Last.fm.
+# * Fixed some documentation bugs.
 
 # 4.6 -- Wed Mar 18 19:45:11 CET 2009
 # * Fixed an changed behavour in irssi-trunk with the error handling (which I should replace anyway!).
@@ -179,7 +186,7 @@ sub DEBUG {
 
 use strict;
 no strict 'refs';
-use LWP::Simple;
+use LWP::UserAgent;
 use Irssi;
 use Encode;
 use POSIX qw(strftime);
@@ -189,17 +196,15 @@ if (DEBUG) {
 }
 
 # TODO
-# * Lower memory usage, lastfm.pl almost takes 1MB or RAM!
-# * Get rid of LWP::Simple dependency.
-# * Make check_lastfm_status use HEAD and check the Etag.
-# * Cache output. This requires HEAD and Etag-support though.
+# * Lower memory usage, lastfm.pl almost takes 1MB of RAM!
 # * 1415.14 Aerdan, warn "lawl" and return; 1415.27 ~mauke, return "error!"
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
-our ($pid, $input_tag) = undef;
+our ($pid, $input_tag, %cache) = undef;
 my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
 my $fields = "(artist|name|album|date|url|player)";
+my $ua = LWP::UserAgent->new(agent => "lastfm.pl/$VERSION", timeout => 10);
 
 sub print_raw {
 	foreach (@_) {
@@ -245,9 +250,23 @@ sub lastfm {
 
 		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
 		print_raw "Checking for scrobbles at: $url" if DEBUG;
-		$content = get($url);
+		if ($cache{'np'}{'etag'} && $cache{'np'}{'content'}) {
+			print "We have etag and content, adding header" if DEBUG;
+			$ua->default_header("If-Modified-Since" => $cache{'np'}{'etag'});
+		}
+		my $response = $ua->get($url);
+		if ($response->code == 304) {
+			print "Got 304, using cache" if DEBUG;
+			print_raw \%cache if DEBUG;
+			$content = $cache{'np'}{'content'};
+		}
+		else {
+			$content = $response->content;
+		}
+		$cache{'np'}{'etag'} = $response->headers->{"last-modified"};
+		$cache{'np'}{'content'} = $content;
 
-		# TODO This doesn't work because LWP::Simple::get doesn't return any content unless it gets an 200
+		# TODO This should work, untested (fail more Last.fm! ; )
 		die $1 if ($content =~ m!<lfm status="failed">.*<error .*?>([^<]+)!s);
 
 		my $regex = qr!<$fields.*?(?:uts="(.*?)">.*?|>(.*?))</\1>!;
@@ -276,8 +295,8 @@ sub lastfm {
 		}
 		if (Irssi::settings_get_bool("lastfm_get_player")) {
 			$url = "http://www.last.fm/user/$user";
-			$content = get($url);
-			if ($content =~ m!</span>Listening now using (.*?)(?: - Tuned.*?)?</div>!) {
+			$content = $ua->get($url)->content;
+			if ($content =~ m!</span>Listening now using (.*?)</div>!) {
 				$_ = $1;
 				s/<[^>]*>//mgs;
 				$data{'player'} = $_;
@@ -367,7 +386,16 @@ sub check_lastfm_status {
 	my ($message, $user) = @_;
 	my $user = ($user) ? $user : Irssi::settings_get_str("lastfm_user");
 	if ($message =~ /^$errormsg_pre/) {
-		my $status = get("http://status.last.fm/");
+		my $response = $ua->get("http://status.last.fm/");
+		my $status;
+		if ($response->code == 304) {
+			$status = $cache{'status'}{'content'};
+		}
+		else {
+			$status = $response->content;
+		}
+		$cache{'status'}{'etag'} = $response->headers->{"last-modified"};
+		$cache{'status'}{'content'} = $response->content;
 		if (grep(m!<tr><td>Submissions</td><td><span class="status_ok">!, split('\n', $status)))
 		{
 			return "I can't find any new scrobblings and Last.fm is not reporting any problem with the submission server, please check if your scrobbler is working. Are tracks turning up on http://last.fm/user/$user ?";
