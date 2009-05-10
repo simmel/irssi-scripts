@@ -1,10 +1,10 @@
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.7";
+$VERSION = "4.8";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20090408",
+        date        => "20090510",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -65,6 +65,12 @@ Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 # The "lastfm_debug" setting will use Data::Dumper which is in core since 1998, but lastfm.pl will just silently ignore if you don't have it installed. Debug output will just be briefer.
 
 # Changelog#{{{
+
+# 4.8 -- Sun May 10 10:11:29 CEST 2009
+# * Fixed a bug with the cache ('There are only two hard things in 
+# Computer Science: cache invalidation and naming things' -Phil Karlton)
+# * Started using HTML::Entities for decoding all sorts of HTML-chars, it's 
+# included in libwww anyway.
 
 # 4.7 -- Tue Apr  8 13:37:11 CEST 2009
 # * Start using LWP::UserAgent instead of LWP::Simple and got rid of the idea to
@@ -187,6 +193,7 @@ sub DEBUG {
 use strict;
 no strict 'refs';
 use LWP::UserAgent;
+use HTML::Entities;
 use Irssi;
 use Encode;
 use POSIX qw(strftime);
@@ -262,8 +269,8 @@ sub lastfm {
 		}
 		else {
 			$content = $response->content;
+			$cache{'np'}{'etag'} = $response->headers->{"last-modified"};
 		}
-		$cache{'np'}{'etag'} = $response->headers->{"last-modified"};
 		$cache{'np'}{'content'} = $content;
 
 		# TODO This should work, untested (fail more Last.fm! ; )
@@ -307,10 +314,7 @@ sub lastfm {
 		$nowplaying =~ s/(%\((.*?%(\w+).?)\))/($data{$3} ? $2 : "")/ge;
 		print_raw "Output pattern after: $nowplaying" if DEBUG;
 		$nowplaying =~ s/%$fields/$data{$1}/ge;
-		$nowplaying =~ s/&amp;/&/g;
-		$nowplaying =~ s/&gt;/>/g;
-		$nowplaying =~ s/&lt;/</g;
-		$nowplaying =~ s/&quot;/"/g;
+		decode_entities($nowplaying);
 		Encode::from_to($nowplaying, "utf-8", Irssi::settings_get_str("term_charset"));
 		$nowplaying = "$user_shifted $nowplaying" if $user_shifted;
 		return $nowplaying;
