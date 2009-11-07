@@ -1,10 +1,11 @@
+# vim: set noexpandtab:
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.8";
+$VERSION = "4.9";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20090510",
+        date        => "20091107",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -33,7 +34,6 @@ Irssi::settings_add_str("lastfm", "lastfm_user", "");
 #   %artist = Self explanatory
 #   %album  = Self explanatory
 #   %name   = Name of song*
-#   %date   = Time when playing of track started, configurable via "lastfm_strftime"
 #   %url    = URL to song on Last.fm
 #   %player = Player we are using to submit to Last.fm with See setting "lastfm_get_player" below
 # If "lastfm_output_tab_complete" is not defined, "lastfm_output" will be used instead.
@@ -53,18 +53,27 @@ Irssi::settings_add_str("lastfm", "lastfm_user", "");
 Irssi::settings_add_str("lastfm", "lastfm_output", 'np: %artist-%name');
 Irssi::settings_add_str("lastfm", "lastfm_output_tab_complete", '');
 
-# The strftime(3) syntax used when displaying at what time a song was submitted.
-Irssi::settings_add_str("lastfm", "lastfm_strftime", 'scrobbled at: %R %Z');
-
 # If we should use /me instead of /say
 Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 
 # If we should make the subtitution variable %player available which is very slow to fetch but nice to have.
 Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 
-# The "lastfm_debug" setting will use Data::Dumper which is in core since 1998, but lastfm.pl will just silently ignore if you don't have it installed. Debug output will just be briefer.
-
 # Changelog#{{{
+
+# 4.9 -- Sat Nov 7 18:10:17 CET 2009
+# * Last.fm changed how their API behaved and that broke my code because
+# I'm a fool and I don't want to use an XML-lib because of your sake (so you
+# won't have to install yet another Perl-module). Thanks to supertobbe and 
+# mm_mannen who saw and reported this!
+# * Fixed so that lastfm_get_player works again and made it say that it
+# doesn't work next time Last.fm changes their HTML.
+# * Removed the date support in lastfm_output and lastfm_output_tab_complete
+# since I use the API another way now.
+# * Removed cache. It was broken at times and I can't be arsed to debug it.
+# It's not that much faster but the complexity gets bigger. If someone REALLY
+# needs this, give me a shout.
+# * Removed, rewrote and cleaned up some parts of the script.
 
 # 4.8 -- Sun May 10 10:11:29 CEST 2009
 # * Fixed a bug with the cache ('There are only two hard things in 
@@ -196,11 +205,7 @@ use LWP::UserAgent;
 use HTML::Entities;
 use Irssi;
 use Encode;
-use POSIX qw(strftime);
-if (DEBUG) {
-	eval "use Data::Dumper";
-	use warnings;
-}
+use Data::Dumper;
 
 # TODO
 # * Lower memory usage, lastfm.pl almost takes 1MB of RAM!
@@ -210,34 +215,8 @@ my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
 our ($pid, $input_tag, %cache) = undef;
 my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
-my $fields = "(artist|name|album|date|url|player)";
+my $fields = "(artist|name|album|url|player)";
 my $ua = LWP::UserAgent->new(agent => "lastfm.pl/$VERSION", timeout => 10);
-
-sub print_raw {
-	foreach (@_) {
-		if (ref($_) eq "SCALAR") {
-			my $scalar = $$_;
-			s/%/%%/g for $scalar;
-			$_ = $scalar;
-		}
-		elsif (ref($_) eq "ARRAY") {
-			my @array = @$_;
-			s/%/%%/g for @array;
-			$_ = \@array;
-		}
-		elsif (ref($_) eq "HASH") {
-			my %hash = %$_;
-			s/%/%%/g for %hash;
-			$_ = \%hash;
-		}
-		else {
-			my $scalar = $_;
-			s/%/%%/g for $scalar;
-			$_ = $scalar;
-		}
-	}
-	print defined &Dumper ? Dumper(@_) : @_;
-}
 
 sub cmd_lastfm {
 	my ($data, $server, $witem) = @_;
@@ -245,36 +224,26 @@ sub cmd_lastfm {
 }
 
 sub lastfm {
-		my ($content, $url, $alt, $artist, $track, $album, $time);
+		my ($content, $url);
 		my $user_shifted = shift;
 		my $user = $user_shifted || Irssi::settings_get_str("lastfm_user");
 		my $is_tabbed = shift;
-		my $strftime = Irssi::settings_get_str("lastfm_strftime");
 		my $nowplaying = shift || ((Irssi::settings_get_str("lastfm_output_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_output_tab_complete") : Irssi::settings_get_str("lastfm_output"));
 
 		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
 		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
 
-		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
-		print_raw "Checking for scrobbles at: $url" if DEBUG;
-		if ($cache{'np'}{'etag'} && $cache{'np'}{'content'}) {
-			print "We have etag and content, adding header" if DEBUG;
-			$ua->default_header("If-Modified-Since" => $cache{'np'}{'etag'});
-		}
+		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=-1";
 		my $response = $ua->get($url);
-		if ($response->code == 304) {
-			print "Got 304, using cache" if DEBUG;
-			print_raw \%cache if DEBUG;
-			$content = $cache{'np'}{'content'};
-		}
-		else {
-			$content = $response->content;
-			$cache{'np'}{'etag'} = $response->headers->{"last-modified"};
-		}
-		$cache{'np'}{'content'} = $content;
+		$content = $response->content;
 
 		# TODO This should work, untested (fail more Last.fm! ; )
 		die $1 if ($content =~ m!<lfm status="failed">.*<error .*?>([^<]+)!s);
+
+		if (!grep(m!<track nowplaying="true">!, split('\n', $content))) {
+			print Dumper \$response if DEBUG;
+			die "You are not playing anothing according to Last.fm. Check http://www.last.fm/user/$user and see if they turn up there, otherwise restart your scrobbler.";
+		}
 
 		my $regex = qr!<$fields.*?(?:uts="(.*?)">.*?|>(.*?))</\1>!;
 		my @data = grep(/$regex/, split('\n', $content));
@@ -284,35 +253,23 @@ sub lastfm {
 			$data{$tag} = $value;
 		}
 
-		if (!defined $data{'artist'}) {
-			die($errormsg_pre." yet".$errormsg_post);
-		}
-
-		if (defined $data{'date'}) {
-			if (!grep(m!<track nowplaying="true">!, split('\n', $content))) {
-				print "We are actually not playing this track right now according to Last.fm. Is your scrobbler using the old protocol?" if DEBUG;
-				if ($data{'date'} < strftime('%s', localtime()) - 60 * 27) {
-					die($errormsg_pre." within the last 30 minutes".$errormsg_post);
-				}
-			}
-			$data{'date'} = strftime($strftime, localtime(scalar($data{'date'})));
-		}
-		else {
-			undef $data{'date'};
-		}
 		if (Irssi::settings_get_bool("lastfm_get_player")) {
 			$url = "http://www.last.fm/user/$user";
 			$content = $ua->get($url)->content;
-			if ($content =~ m!</span>Listening now using (.*?)</div>!) {
+			if ($content =~ m!<div class="scrobblesource">.*?Listening now using (.*?)</div>!) {
 				$_ = $1;
 				s/<[^>]*>//mgs;
 				$data{'player'} = $_;
 			}
+			else {
+				print "Couldn't find the player even though lastfm_get_player was set" if DEBUG;
+			}
 		}
-		print_raw {%data} if DEBUG;
-		print_raw "Output pattern before: $nowplaying" if DEBUG;
+
+		print Dumper \%data if DEBUG;
+		print Dumper "Output pattern before: $nowplaying" if DEBUG;
 		$nowplaying =~ s/(%\((.*?%(\w+).?)\))/($data{$3} ? $2 : "")/ge;
-		print_raw "Output pattern after: $nowplaying" if DEBUG;
+		print Dumper "Output pattern after: $nowplaying" if DEBUG;
 		$nowplaying =~ s/%$fields/$data{$1}/ge;
 		decode_entities($nowplaying);
 		Encode::from_to($nowplaying, "utf-8", Irssi::settings_get_str("term_charset"));
@@ -386,36 +343,12 @@ sub input_read {
 	$input_tag = $pid = undef;
 }
 
-sub check_lastfm_status {
-	my ($message, $user) = @_;
-	my $user = ($user) ? $user : Irssi::settings_get_str("lastfm_user");
-	if ($message =~ /^$errormsg_pre/) {
-		my $response = $ua->get("http://status.last.fm/");
-		my $status;
-		if ($response->code == 304) {
-			$status = $cache{'status'}{'content'};
-		}
-		else {
-			$status = $response->content;
-		}
-		$cache{'status'}{'etag'} = $response->headers->{"last-modified"};
-		$cache{'status'}{'content'} = $response->content;
-		if (grep(m!<tr><td>Submissions</td><td><span class="status_ok">!, split('\n', $status)))
-		{
-			return "I can't find any new scrobblings and Last.fm is not reporting any problem with the submission server, please check if your scrobbler is working. Are tracks turning up on http://last.fm/user/$user ?";
-		}
-		else {
-			return 0;
-		}
-	}
-}
-
 Irssi::command_bind('np', 'cmd_lastfm', 'lastfm');
 
 Irssi::signal_add_last 'complete word' => sub {
 	my ($complist, $window, $word, $linestart, $want_space) = @_;
-  my $tab_fields = $fields;
-  $tab_fields =~ s/\(/(nowplaying|np|/;
+	my $tab_fields = $fields;
+	$tab_fields =~ s/\(/(nowplaying|np|/;
 	my $is_tabbed = 1;
 	if ($word =~ /%(lastfm|lfm)/) {
 		my $user = Irssi::settings_get_str("lastfm_user");
@@ -427,14 +360,13 @@ Irssi::signal_add_last 'complete word' => sub {
 	}
 	elsif ($word =~ /(\%(?:$tab_fields))\(?(\w+)?\)?/) {
 		my ($nowplaying, $user) = ($1, $3);
-    undef $nowplaying if ($nowplaying =~ /nowplaying|np/);
+		undef $nowplaying if ($nowplaying =~ /nowplaying|np/);
 		eval {
 			$nowplaying = lastfm($user, $is_tabbed, $nowplaying);
 		};
 		if ($@) {
 			if ($@ =~ /^(.+) (.*?\/lastfm.pl|\(eval \d+\)) line \d+\.$/) {
 				my $message = $1;
-				$message = $_ if ($_ = check_lastfm_status($message, $user));
 				Irssi::active_win()->print($message);
 			}
 			return 0;
