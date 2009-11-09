@@ -1,11 +1,11 @@
 # vim: set noexpandtab:
 use vars qw($VERSION %IRSSI);
-$VERSION = "4.9";
+$VERSION = "5.0";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20091107",
+        date        => "20091109",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -60,6 +60,9 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 
 # Changelog#{{{
+
+# 5.0 -- Mon Nov 9 08:34:48 CET 2009
+# * Fixed a warning reported by mm_mannen and did a yet another clean up
 
 # 4.9 -- Sat Nov 7 18:10:17 CET 2009
 # * Last.fm changed how their API behaved and that broke my code because
@@ -201,6 +204,7 @@ sub DEBUG {
 
 use strict;
 no strict 'refs';
+use warnings;
 use LWP::UserAgent;
 use HTML::Entities;
 use Irssi;
@@ -214,9 +218,9 @@ use Data::Dumper;
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
 our ($pid, $input_tag, %cache) = undef;
-my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
-my $fields = "(artist|name|album|url|player)";
-my $ua = LWP::UserAgent->new(agent => "lastfm.pl/$VERSION", timeout => 10);
+our $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
+our $fields = "(artist|name|album|url|player)";
+our $ua = LWP::UserAgent->new(agent => "lastfm.pl/$VERSION", timeout => 10);
 
 sub cmd_lastfm {
 	my ($data, $server, $witem) = @_;
@@ -224,7 +228,7 @@ sub cmd_lastfm {
 }
 
 sub lastfm {
-		my ($content, $url);
+		my ($content, $url, $response, $tag, $value, %data); 
 		my $user_shifted = shift;
 		my $user = $user_shifted || Irssi::settings_get_str("lastfm_user");
 		my $is_tabbed = shift;
@@ -233,8 +237,9 @@ sub lastfm {
 		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
 		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
 
-		my $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=-1";
-		my $response = $ua->get($url);
+		$url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=-1";
+		print Dumper "Checking for scrobbles at: $url" if DEBUG;
+		$response = $ua->get($url);
 		$content = $response->content;
 
 		# TODO This should work, untested (fail more Last.fm! ; )
@@ -247,7 +252,7 @@ sub lastfm {
 
 		my $regex = qr!<$fields.*?(?:uts="(.*?)">.*?|>(.*?))</\1>!;
 		my @data = grep(/$regex/, split('\n', $content));
-		my ($tag, $value, %data); 
+
 		foreach my $data (@data) {
 			($tag, $value) = ($1, (defined($2) ? $2 : $3)) if ($data =~ /$regex/);
 			$data{$tag} = $value;
@@ -347,9 +352,9 @@ Irssi::command_bind('np', 'cmd_lastfm', 'lastfm');
 
 Irssi::signal_add_last 'complete word' => sub {
 	my ($complist, $window, $word, $linestart, $want_space) = @_;
+	my $is_tabbed = 1;
 	my $tab_fields = $fields;
 	$tab_fields =~ s/\(/(nowplaying|np|/;
-	my $is_tabbed = 1;
 	if ($word =~ /%(lastfm|lfm)/) {
 		my $user = Irssi::settings_get_str("lastfm_user");
 		if (!defined $user) {
