@@ -1,11 +1,11 @@
 # vim: set noexpandtab:
 use vars qw($VERSION %IRSSI);
-$VERSION = "5.0";
+$VERSION = "5.1";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20091109",
+        date        => "20091111",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -60,6 +60,11 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 
 # Changelog#{{{
+
+# 5.1 -- Wed Nov 11 09:39:54 CET 2009
+# * Ok, I admit that using undocumented features in an API is bad, but come
+# on..  Anyway, fixed now, everything should work as it should and should
+# never break again (flw)...
 
 # 5.0 -- Mon Nov 9 08:34:48 CET 2009
 # * Fixed a warning reported by mm_mannen and did a yet another clean up
@@ -237,25 +242,31 @@ sub lastfm {
 		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
 		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
 
-		$url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=-1";
+		$url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
 		print Dumper "Checking for scrobbles at: $url" if DEBUG;
 		$response = $ua->get($url);
 		$content = $response->content;
 
 		# TODO This should work, untested (fail more Last.fm! ; )
 		die $1 if ($content =~ m!<lfm status="failed">.*<error .*?>([^<]+)!s);
+		my @data = split('\n', $content);
 
-		if (!grep(m!<track nowplaying="true">!, split('\n', $content))) {
+		if (!grep(m!<track nowplaying="true">!, @data)) {
 			print Dumper \$response if DEBUG;
 			die "You are not playing anothing according to Last.fm. Check http://www.last.fm/user/$user and see if they turn up there, otherwise restart your scrobbler.";
 		}
 
 		my $regex = qr!<$fields.*?(?:uts="(.*?)">.*?|>(.*?))</\1>!;
-		my @data = grep(/$regex/, split('\n', $content));
 
 		foreach my $data (@data) {
-			($tag, $value) = ($1, (defined($2) ? $2 : $3)) if ($data =~ /$regex/);
-			$data{$tag} = $value;
+			if ($data =~ m!</track>!) {
+				last;
+			}
+			elsif ($data =~ /$regex/) {
+				($tag, $value) = ($1, (defined($2) ? $2 : $3));
+				print Dumper \$tag, \$value, \$data if DEBUG;
+				$data{$tag} = $value;
+			}
 		}
 
 		if (Irssi::settings_get_bool("lastfm_get_player")) {
