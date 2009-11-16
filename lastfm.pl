@@ -1,11 +1,11 @@
 # vim: set noexpandtab:
 use vars qw($VERSION %IRSSI);
-$VERSION = "5.1";
+$VERSION = "5.2";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20091111",
+        date        => "20091116",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -60,6 +60,9 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 
 # Changelog#{{{
+
+# 5.2 -- Mon Nov 16 08:25:20 CET 2009
+# * When you remove a subroutine you should remove all calls to it..
 
 # 5.1 -- Wed Nov 11 09:39:54 CET 2009
 # * Ok, I admit that using undocumented features in an API is bad, but come
@@ -216,10 +219,6 @@ use Irssi;
 use Encode;
 use Data::Dumper;
 
-# TODO
-# * Lower memory usage, lastfm.pl almost takes 1MB of RAM!
-# * 1415.14 Aerdan, warn "lawl" and return; 1415.27 ~mauke, return "error!"
-
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
 our ($pid, $input_tag, %cache) = undef;
@@ -337,7 +336,6 @@ sub input_read {
 
 	if ($content =~ /^(.+) at (.*?\/lastfm.pl|\(eval \d+\)) line \d+\.$/) {
 		my $message = $1;
-		$message = $_ if ($_ = check_lastfm_status($message));
 		Irssi::active_win()->print($message);
 	}
 	else {
