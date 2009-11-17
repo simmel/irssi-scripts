@@ -1,6 +1,6 @@
 # vim: set noexpandtab:
 use vars qw($VERSION %IRSSI);
-$VERSION = "5.2";
+$VERSION = "5.3";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
@@ -60,6 +60,9 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 
 # Changelog#{{{
+
+# 5.3 -- 
+# * I used POSIX::_exit() but I never did "use POSIX;". Leo Green reported this problem, thanks!
 
 # 5.2 -- Mon Nov 16 08:25:20 CET 2009
 # * When you remove a subroutine you should remove all calls to it..
@@ -218,6 +221,7 @@ use HTML::Entities;
 use Irssi;
 use Encode;
 use Data::Dumper;
+use POSIX '_exit';
 
 my $errormsg_pre = "You haven't submitted a song to Last.fm";
 my $errormsg_post = ", maybe Last.fm submission service is down?";
@@ -326,7 +330,7 @@ sub lastfm_forky {
 	}
 	print $writer $response;
 	close $writer;
-	POSIX::_exit(1);
+	_exit(1);
 }
 
 sub input_read {
