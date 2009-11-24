@@ -5,7 +5,7 @@ $VERSION = "5.3";
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20091116",
+        date        => "20091124",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -62,7 +62,9 @@ Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 # Changelog#{{{
 
 # 5.3 -- 
-# * I used POSIX::_exit() but I never did "use POSIX;". Leo Green reported this problem, thanks!
+# * I used POSIX::_exit() but I never did "use POSIX;". Leo Green, mortiis and
+# rissy reported this problem, thanks! This is an issue when you have a newer
+# version of Perl installed (>5.10)
 
 # 5.2 -- Mon Nov 16 08:25:20 CET 2009
 # * When you remove a subroutine you should remove all calls to it..
@@ -200,11 +202,14 @@ Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 # * Started using XML instead because we get more info from it, like album (but it's often wrong).
 
 # 1.0 -- Thu Apr 12 16:57:26 CEST 2007
-# * Got fedup with no good Last.fm-based now playing scripts around.#
+# * Got fedup with no good Last.fm-based now playing scripts around.
 
 # THANKS
 # Random individuals on #perl@freenode, could namedrop icke, 
 # }}}
+
+# TODO
+# You tell me!
 
 # Move along now, there's nothing here to see.
 
@@ -330,7 +335,7 @@ sub lastfm_forky {
 	}
 	print $writer $response;
 	close $writer;
-	_exit(1);
+	POSIX::_exit(1);
 }
 
 sub input_read {
