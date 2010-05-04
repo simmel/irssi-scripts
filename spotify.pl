@@ -7,7 +7,7 @@ use XML::Simple 'XMLin';
 use utf8;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = '1.0';
+$VERSION = '1.1';
 %IRSSI = (
   authors     => "Simon 'simmel' Lundström",
   contact     => 'simmel@(freenode|quakenet|efnet)',
@@ -30,9 +30,18 @@ sub spotifyuri_handler {
 
       if ($xml->{'artist'}->{'name'}) {
         $info .= $xml->{'artist'}->{'name'};
-        # Let's use an n-dash if we're UTF-8 enabled
-        $info .= (Irssi::settings_get_str("term_charset") =~ /utf-8/i) ? "\x{2013}" : "-";
       }
+      else {
+        for (keys %{$xml->{'artist'}}) {
+          $info .= $_.", ";
+        }
+
+        # Trim off the last ", "
+        $info =~ s/, $//;
+      }
+
+      # Let's use an n-dash if we're UTF-8 enabled
+      $info .= (Irssi::settings_get_str("term_charset") =~ /utf-8/i) ? "\x{2013}" : "-";
 
       if ($xml->{'name'}) {
         $info .= $xml->{'name'};
@@ -50,7 +59,7 @@ sub spotifyuri_handler {
       }
     }
     else {
-      print "lol whut? HTTP $res->code";
+      print "lol whut? HTTP ".$res->code;
       print Dumper \$res;
       print Dumper \$ua;
     }
