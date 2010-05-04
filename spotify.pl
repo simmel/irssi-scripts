@@ -21,7 +21,8 @@ sub spotifyuri_handler {
   my ($window, $text) = @_;
   if ($text =~ /(?!http:\/\/open.spotify.com\/|spotify:)(album|artist|track)[:\/]([a-zA-Z0-9]+)\/?/) {
     my $kind = $1;
-    my $url = "http://ws.spotify.com/lookup/1/?uri=spotify:$kind:$2";
+    my $id = $2;
+    my $url = "http://ws.spotify.com/lookup/1/?uri=spotify:$kind:$id";
     my $ua = LWP::UserAgent->new(env_proxy=>1, keep_alive=>1, timeout=>5);
     $ua->agent(%IRSSI->{'name'}.".pl/$VERSION ".$ua->agent());
     my $res = $ua->get($url);
@@ -51,18 +52,28 @@ sub spotifyuri_handler {
         $info .= " (" . $xml->{'album'}->{'name'} . ")";
       }
 
-      if ($window) {
-        $window->print("[spotify] $info", MSGLEVEL_CRAP);
-      }
-      else {
-        Irssi::active_win()->("[spotify] $info");
-      }
+      print_in_active($window, $info);
     }
+
+    elsif ($res->code == 404) {
+      print_in_active($window, "spotify:$kind:$id is not available on Spotify");
+    }
+
     else {
       print "lol whut? HTTP ".$res->code;
       print Dumper \$res;
       print Dumper \$ua;
     }
+  }
+}
+
+sub print_in_active {
+  my ($window, $message) = @_;
+  if ($window) {
+    $window->print("[spotify] $message", MSGLEVEL_CRAP);
+  }
+  else {
+    Irssi::active_win()->("[spotify] $message");
   }
 }
 
