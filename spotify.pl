@@ -7,7 +7,7 @@ use XML::Simple 'XMLin';
 use utf8;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = '1.1';
+$VERSION = '1.2';
 %IRSSI = (
   authors     => "Simon 'simmel' Lundström",
   contact     => 'simmel@(freenode|quakenet|efnet)',
@@ -55,7 +55,7 @@ sub spotifyuri_handler {
       print_in_active($window, $info);
     }
 
-    elsif ($res->code == 404) {
+    elsif ($res->code =~ /40[40]/) {
       print_in_active($window, "spotify:$kind:$id is not available on Spotify");
     }
 
