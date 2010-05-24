@@ -248,7 +248,7 @@ sub lastfm {
 		my $nowplaying = shift || ((Irssi::settings_get_str("lastfm_output_tab_complete") ne "" && $is_tabbed) ? Irssi::settings_get_str("lastfm_output_tab_complete") : Irssi::settings_get_str("lastfm_output"));
 
 		my $command_message = ($is_tabbed) ? '$np(username)' : '/np username';
-		die("You must /set lastfm_user to a username on Last.fm or use $command_message") if $user eq '';
+		die("You must /set lastfm_user to a username on Last.fm or use $command_message\n") if $user eq '';
 
 		$url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
 		print Dumper "Checking for scrobbles at: $url" if DEBUG;
@@ -256,12 +256,12 @@ sub lastfm {
 		$content = $response->content;
 
 		# TODO This should work, untested (fail more Last.fm! ; )
-		die $1 if ($content =~ m!<lfm status="failed">.*<error .*?>([^<]+)!s);
+		die $1."\n" if ($content =~ m!<lfm status="failed">.*<error .*?>([^<]+)!s);
 		my @data = split('\n', $content);
 
 		if (!grep(m!<track nowplaying="true">!, @data)) {
 			print Dumper \$response if DEBUG;
-			die "You are not playing anothing according to Last.fm. Check http://www.last.fm/user/$user and see if they turn up there, otherwise restart your scrobbler.";
+			die "You are not playing anothing according to Last.fm. Check http://www.last.fm/user/$user and see if they turn up there, otherwise restart your scrobbler.\n";
 		}
 
 		my $regex = qr!<$fields.*?(?:uts="(.*?)">.*?|>(.*?))</\1>!;
