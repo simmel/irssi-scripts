@@ -280,7 +280,7 @@ sub lastfm {
 		if (Irssi::settings_get_bool("lastfm_get_player")) {
 			$url = "http://www.last.fm/user/$user";
 			$content = $ua->get($url)->content;
-			if ($content =~ m!<div class="scrobblesource">.*?Listening now using (.*?)</div>!) {
+			if ($content =~ m!<span class="source">(.*?)</span>!) {
 				$_ = $1;
 				s/<[^>]*>//mgs;
 				$data{'player'} = $_;
