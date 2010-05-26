@@ -1,11 +1,11 @@
 # vim: set noexpandtab:
 use vars qw($VERSION %IRSSI);
-$VERSION = "5.3";
+$VERSION = "5.4";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20091124",
+        date        => "20100526",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -60,6 +60,11 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 
 # Changelog#{{{
+
+# 5.4 -- Wed May 26 17:04:08 CEST 2010
+# * Last.fm updated their profile HTML so that the %player macro didn't work.
+# Thanks to Keith Ward for mentioning this and suggesting a fix.
+# * A minor fix which removes some debug messages when error reporting.
 
 # 5.3 -- 
 # * I used POSIX::_exit() but I never did "use POSIX;". Leo Green, mortiis and
