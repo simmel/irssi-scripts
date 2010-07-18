@@ -1,11 +1,11 @@
 # vim: set expandtab:
 use vars qw($VERSION %IRSSI);
-$VERSION = "5.5";
+$VERSION = "5.6";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20100526",
+        date        => "20100718",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -35,7 +35,8 @@ Irssi::settings_add_str("lastfm", "lastfm_user", "");
 #   %album  = Self explanatory
 #   %name   = Name of song*
 #   %url    = URL to song on Last.fm
-#   %player = Player we are using to submit to Last.fm with See setting "lastfm_get_player" below
+#   %player = Player we are using to submit to Last.fm with. See setting "lastfm_get_player" below
+#   %user   = User that is playing, when /np <username> or %np(<username> is used
 # If "lastfm_output_tab_complete" is not defined, "lastfm_output" will be used instead.
 # Something bothered me for a long time and when something really starts to itch
 # I tend to want to do something about it. I'm /np:ing away displaying all sorts
@@ -50,7 +51,7 @@ Irssi::settings_add_str("lastfm", "lastfm_user", "");
 # displayed if the tag inside actually exists! Cool, huh!?
 
 #  *) Name is used instead of, the more logical IMO, track since that is what Last.fm reports in their .xml file that we parse.
-Irssi::settings_add_str("lastfm", "lastfm_output", 'np: %artist-%name');
+Irssi::settings_add_str("lastfm", "lastfm_output", '%(%user is )np: %artist-%name');
 Irssi::settings_add_str("lastfm", "lastfm_output_tab_complete", '');
 
 # If we should use /me instead of /say
@@ -60,6 +61,11 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 
 # Changelog#{{{
+
+# 5.6 -- Sun Jul 18 13:16:38 CEST 2010
+# * Made substitution variable %user available when /np <username> or
+# %np(<username>) is used.
+# * Made some checks a bit more strict.
 
 # 5.5 -- Mon Jul 12 19:04:26 CEST 2010
 # * Rewrote the whole error handling
@@ -239,7 +245,7 @@ use POSIX;
 
 my $pipe_tag;
 my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
-my $fields = "(artist|name|album|url|player)";
+my $fields = "(artist|name|album|url|player|user)";
 my $ua = LWP::UserAgent->new(agent => "lastfm.pl/$VERSION", timeout => 10);
 
 sub lastfm_nowplaying {
@@ -253,9 +259,14 @@ sub lastfm_nowplaying {
     return "ERROR: You must /set lastfm_user to a username on Last.fm or use $command_message";
   }
 
-  if ($nowplaying =~ /%(lastfm|lfm)/) {
+  if ($nowplaying =~ /^%(lastfm|lfm)$/) {
     return "http://last.fm/user/$user/";
   }
+  elsif ($nowplaying =~ /^%user$/) {
+    return $user;
+  }
+
+  $data{'user'} = $user if ($user_shifted);
 
   $url = "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=$user&api_key=$api_key&limit=1";
   print Dumper "Checking for scrobbles at: $url" if DEBUG;
@@ -306,7 +317,6 @@ sub lastfm_nowplaying {
   $nowplaying =~ s/%$fields/$data{$1}/ge;
   decode_entities($nowplaying);
   Encode::from_to($nowplaying, "utf-8", Irssi::settings_get_str("term_charset"));
-  $nowplaying = "$user_shifted $nowplaying" if $user_shifted;
   return $nowplaying;
 }
 
@@ -370,14 +380,17 @@ sub pipe_input {
 }
 
 sub lastfm_print {
-  my ($witem, $text) = @_;
+  my ($witem, $text, $tabbed) = @_;
   # Fugly error handling
   if ($text =~ s/^ERROR: //) {
     Irssi::active_win()->print($text);
     return;
   }
 
-  if (defined $witem->{type} && $witem->{type} =~ /^QUERY|CHANNEL$/) {
+  if ($tabbed) {
+    return $text;
+  }
+  elsif (defined $witem->{type} && $witem->{type} =~ /^QUERY|CHANNEL$/) {
     if (Irssi::settings_get_bool("lastfm_use_action")) {
       $witem->command("me $text");
     }
@@ -403,18 +416,16 @@ Irssi::command_bind('np', sub {
   }, 'lastfm');
 
 Irssi::signal_add_last 'complete word' => sub {
-my ($complist, $window, $word, $linestart, $want_space) = @_;
-my $is_tabbed = 1;
-my $tab_fields = $fields;
-$tab_fields =~ s/\(/(nowplaying|np|lastfm|lfm|/;
-if ($word =~ /(\%(?:$tab_fields))\(?(\w+)?\)?/) {
-my ($nowplaying, $user) = ($1, $3);
-undef $nowplaying if ($nowplaying =~ /nowplaying|np/);
-$nowplaying = lastfm_nowplaying($user, $is_tabbed, $nowplaying);
-if ($nowplaying =~ s/^ERROR: //) {
-Irssi::active_win()->print($nowplaying);
-return 0;
-}
-push @$complist, "$nowplaying" if $nowplaying;
-}
+  my ($complist, $window, $word, $linestart, $want_space) = @_;
+  my $is_tabbed = 1;
+  my $tab_fields = $fields;
+  $tab_fields =~ s/\(/(nowplaying|np|lastfm|lfm|/;
+  if ($word =~ /(\%(?:$tab_fields))\(?(\w+)?\)?/) {
+    my ($nowplaying, $user) = ($1, $3);
+    undef $nowplaying if ($nowplaying =~ /nowplaying|np/);
+    $nowplaying = lastfm_nowplaying($user, $is_tabbed, $nowplaying);
+    if (lastfm_print(Irssi::active_win(), $nowplaying, 1)) {
+      push @$complist, "$nowplaying";
+    }
+  }
 };
