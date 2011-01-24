@@ -1,11 +1,11 @@
 # vim: set expandtab:
 use vars qw($VERSION %IRSSI);
-$VERSION = "5.6";
+$VERSION = "5.7";
 %IRSSI = (
         authors     => "Simon 'simmel' Lundström",
         contact     => 'simmel@(freenode|quakenet|efnet) http://last.fm/user/darksoy',
         name        => "lastfm",
-        date        => "20100718",
+        date        => "20110124",
         description => 'A now-playing-script which uses Last.fm',
         license     => "BSD",
         url         => "http://soy.se/code/",
@@ -61,6 +61,9 @@ Irssi::settings_add_bool("lastfm", "lastfm_use_action", 0);
 Irssi::settings_add_bool("lastfm", "lastfm_get_player", 0);
 
 # Changelog#{{{
+
+# 5.7 -- Mon Jan 24 16:39:06 CET 2011
+# * Fixed a bug where we forked when we still waited for a reply from last.fm
 
 # 5.6 -- Sun Jul 18 13:16:38 CEST 2010
 # * Made substitution variable %user available when /np <username> or
