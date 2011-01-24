@@ -244,6 +244,7 @@ use LWP::UserAgent;
 use POSIX;
 
 my $pipe_tag;
+my $waiting_for_reply;
 my $api_key = "eba9632ddc908a8fd7ad1200d771beb7";
 my $fields = "(artist|name|album|url|player|user)";
 my $ua = LWP::UserAgent->new(agent => "lastfm.pl/$VERSION", timeout => 10);
@@ -281,6 +282,7 @@ sub lastfm_nowplaying {
 
   if (!grep(m!<track nowplaying="true">!, @data)) {
     print Dumper \$response if DEBUG;
+    print Dumper \$content if DEBUG;
     return "ERROR: You are not playing anything according to Last.fm. Check http://www.last.fm/user/$user and see if they turn up there, otherwise restart your scrobbler.";
   }
 
@@ -328,6 +330,10 @@ sub lastfm_blocking {
 
 sub lastfm_forky {
   my ($witem, $user) = @_;
+  if ($waiting_for_reply) {
+    lastfm_print(Irssi::active_win(), "We are still waiting for Last.fm to return our results");
+    return;
+  }
   # pipe is used to get the reply from child
   my ($rh, $wh);
   pipe($rh, $wh);
@@ -340,6 +346,8 @@ sub lastfm_forky {
     close($wh);
     return;
   }
+
+  $waiting_for_reply = 1;
 
   if ($pid > 0) {
     # parent, wait for reply
@@ -375,6 +383,7 @@ sub pipe_input {
 
   Irssi::input_remove($pipe_tag);
   $pipe_tag = -1;
+  undef $waiting_for_reply;
 
   lastfm_print($witem, $text);
 }
