@@ -39,6 +39,7 @@ sub spotifyuri_handler {
     if ($res->is_success()) {
       my ($xml, $info) = (XMLin($res->content()), undef);
 
+      # FIXME: When $kind is artist artist name is just $xml->{'name'}
       if ($xml->{'artist'}->{'name'}) {
         $info .= $xml->{'artist'}->{'name'};
       }
