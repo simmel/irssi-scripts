@@ -19,7 +19,7 @@ $VERSION = '1.2';
 
 sub spotifyuri_handler {
   my ($window, $text) = @_;
-  if ($text =~ /(?!http:\/\/open.spotify.com\/|spotify:)(album|artist|track)[:\/]([a-zA-Z0-9]+)\/?/) {
+  if ($text =~ /(?:http:\/\/open.spotify.com\/|spotify:)(album|artist|track)[:\/]([a-zA-Z0-9]+)\/?/) {
     my $kind = $1;
     my $id = $2;
     my $url = "http://ws.spotify.com/lookup/1/?uri=spotify:$kind:$id";
