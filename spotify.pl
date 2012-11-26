@@ -17,6 +17,16 @@ $VERSION = '1.2';
   url         => 'http://soy.se/code/spotify.pl',
 );
 
+sub print_in_active {
+  my ($window, $message) = @_;
+  if ($window) {
+    $window->print("[spotify] $message", MSGLEVEL_CRAP);
+  }
+  else {
+    Irssi::active_win()->print("[spotify] $message");
+  }
+}
+
 sub spotifyuri_handler {
   my ($window, $text) = @_;
   if ($text =~ /(?:http:\/\/open.spotify.com\/|spotify:)(album|artist|track)[:\/]([a-zA-Z0-9]+)\/?/) {
@@ -64,16 +74,6 @@ sub spotifyuri_handler {
       print Dumper \$res;
       print Dumper \$ua;
     }
-  }
-}
-
-sub print_in_active {
-  my ($window, $message) = @_;
-  if ($window) {
-    $window->print("[spotify] $message", MSGLEVEL_CRAP);
-  }
-  else {
-    Irssi::active_win()->("[spotify] $message");
   }
 }
 
